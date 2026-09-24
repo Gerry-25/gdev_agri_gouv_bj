@@ -4,6 +4,7 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from app.core.benin import CommuneField, DepartmentField, PhoneField
+from app.core.utils import CLIENT_REF_DESCRIPTION, CLIENT_REF_PATTERN
 
 OfferStatus = Literal["active", "sold", "withdrawn"]
 
@@ -16,6 +17,7 @@ class HarvestOfferCreate(BaseModel):
     land_id: Optional[str] = Field(None, description="Parcelle d'origine : renseigne la localisation et assure la traçabilité")
     location_commune: Optional[CommuneField] = None
     department: Optional[DepartmentField] = None
+    client_ref: Optional[str] = Field(None, pattern=CLIENT_REF_PATTERN, description=CLIENT_REF_DESCRIPTION)
 
     @model_validator(mode="after")
     def _location_required(self):
@@ -51,7 +53,25 @@ class HarvestOfferOut(BaseModel):
     sold_quantity_kg: Optional[float] = None
     sold_unit_price_fcfa: Optional[float] = None
     sold_at: Optional[datetime] = None
+    interest_count: int = 0
+    client_ref: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     tel_url: str = Field(..., description="Lien d'appel direct (tel:)")
     whatsapp_url: str = Field(..., description="Lien WhatsApp avec message pré-rempli")
+
+
+class InterestCreate(BaseModel):
+    message: Optional[str] = Field(None, max_length=500, examples=["Je peux acheter 500 kg livrés à Cotonou."])
+    quantity_kg: Optional[float] = Field(None, gt=0)
+
+
+class InterestOut(BaseModel):
+    id: str
+    offer_id: str
+    buyer_npi: str
+    buyer_name: Optional[str] = None
+    buyer_phone: Optional[str] = None
+    message: Optional[str] = None
+    quantity_kg: Optional[float] = None
+    created_at: datetime

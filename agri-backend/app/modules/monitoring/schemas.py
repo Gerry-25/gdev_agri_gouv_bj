@@ -47,4 +47,7 @@ class DiagnosisResponse(DiagnosisResult):
     location: Optional[dict] = Field(None, description="Point GeoJSON du lieu du diagnostic")
     language: str = "fr"
     is_simulation: bool = False
+    image_url: Optional[str] = Field(None, description="Chemin de la photo conservée (authentification requise)")
+    client_ref: Optional[str] = None
+    observed_at: Optional[datetime] = Field(None, description="Date de prise de la photo (peut précéder l'envoi en mode hors ligne)")
     created_at: Optional[datetime] = None

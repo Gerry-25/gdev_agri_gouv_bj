@@ -35,7 +35,7 @@ def _bbox_or_422(bbox: str) -> dict:
     try:
         return geo.bbox_polygon(bbox)
     except geo.GeometryError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
 
 
 @router.get("/dashboard-metrics", summary="Indicateurs nationaux")
@@ -53,8 +53,13 @@ async def get_state_metrics(db=Depends(get_database), days: int = Query(30, ge=1
         "estimated_production_kg": await _sum(db["lands"], {}, "$estimated_yield_kg"),
         "actual_production_kg": await _sum(db["harvests"], {}, "$actual_yield_kg"),
         "open_disputes": await db["disputes"].count_documents({"status": {"$in": OPEN_DISPUTE_STATUSES}}),
+        "pending_transfers": await db["transfers"].count_documents({"status": "en_attente"}),
+        "parcels_verified": await db["lands"].count_documents({"verification_status": "verifiee"}),
+        "parcels_awaiting_verification": await db["lands"].count_documents({"verification_status": {"$in": ["declaree", None]}}),
+        "registered_farmers": await db["users"].count_documents({"role": "farmer"}),
+        "registered_buyers": await db["users"].count_documents({"role": "buyer"}),
         "phytosanitary_threats_total": await db["phytosanitary_alerts"].count_documents(_THREAT),
-        f"phytosanitary_threats_last_{days}_days": await db["phytosanitary_alerts"].count_documents({**_THREAT, "created_at": {"$gte": since}}),
+        f"phytosanitary_threats_last_{days}_days": await db["phytosanitary_alerts"].count_documents({**_THREAT, "observed_at": {"$gte": since}}),
         "market_active_volume_fcfa": active_value,
         "market_sold_volume_fcfa": sold_value,
         "revenue_rate": rate,
@@ -83,7 +88,7 @@ async def stats_by_zone(
         {"$match": base}, {"$group": {"_id": keys, "actual_production_kg": {"$sum": "$actual_yield_kg"}}},
     ])
     threats = await _aggregate(db["phytosanitary_alerts"], [
-        {"$match": {**base, **_THREAT, "created_at": {"$gte": utcnow() - timedelta(days=days)}}},
+        {"$match": {**base, **_THREAT, "observed_at": {"$gte": utcnow() - timedelta(days=days)}}},
         {"$group": {"_id": keys, "threats": {"$sum": 1},
                     "critical": {"$sum": {"$cond": [{"$eq": ["$severity", "Critique"]}, 1, 0]}}}},
     ])
@@ -131,7 +136,7 @@ async def sanitary_hotspots(
     department: Optional[str] = None,
 ):
     threshold = min_cases or settings.HOTSPOT_MIN_CASES
-    match = {**_THREAT, "created_at": {"$gte": utcnow() - timedelta(days=days)}}
+    match = {**_THREAT, "observed_at": {"$gte": utcnow() - timedelta(days=days)}}
     if department:
         match["department"] = department
     rows = await _aggregate(db["phytosanitary_alerts"], [
@@ -141,7 +146,7 @@ async def sanitary_hotspots(
             "cases": {"$sum": 1},
             "critical_cases": {"$sum": {"$cond": [{"$eq": ["$severity", "Critique"]}, 1, 0]}},
             "affected_farmers": {"$addToSet": "$farmer_npi"},
-            "last_seen": {"$max": "$created_at"},
+            "last_seen": {"$max": "$observed_at"},
         }},
         {"$sort": {"cases": -1}},
     ])
@@ -168,6 +173,7 @@ async def map_lands(
     commune: Optional[str] = None,
     crop_type: Optional[str] = None,
     dispute_only: bool = False,
+    verification_status: Optional[str] = Query(None, description="declaree, verifiee ou rejetee"),
     limit: int = Query(2000, ge=1, le=10_000),
 ):
     filters: dict = {}
@@ -178,6 +184,8 @@ async def map_lands(
             filters[field] = value
     if dispute_only:
         filters["dispute_flag"] = True
+    if verification_status:
+        filters["verification_status"] = verification_status
     cursor = db["lands"].find(filters, {"boundary_history": 0}).limit(limit)
     return geo.feature_collection([land_feature(d) async for d in cursor])
 
@@ -191,19 +199,19 @@ async def map_alerts(
     include_healthy: bool = False,
     limit: int = Query(5000, ge=1, le=20_000),
 ):
-    filters: dict = {"location": {"$exists": True}, "created_at": {"$gte": utcnow() - timedelta(days=days)}}
+    filters: dict = {"location": {"$exists": True}, "observed_at": {"$gte": utcnow() - timedelta(days=days)}}
     if not include_healthy:
         filters.update(_THREAT)
     if disease:
         filters["disease_name"] = disease
     if bbox:
         filters["location"] = {"$geoWithin": {"$geometry": _bbox_or_422(bbox)}}
-    cursor = db["phytosanitary_alerts"].find(filters).sort("created_at", -1).limit(limit)
+    cursor = db["phytosanitary_alerts"].find(filters).sort("observed_at", -1).limit(limit)
     features = [
         geo.feature(d["location"], {
             "id": str(d["_id"]), "disease_name": d.get("disease_name"), "crop": d.get("crop_identified"),
             "severity": d.get("severity"), "alert_color": d.get("alert_color"), "health_status": d.get("health_status"),
-            "department": d.get("department"), "commune": d.get("commune"), "created_at": d["created_at"].isoformat(),
+            "department": d.get("department"), "commune": d.get("commune"), "observed_at": d["observed_at"].isoformat(),
         })
         async for d in cursor
     ]

@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.core.security import CurrentUser
 from app.core.utils import parse_object_id, utcnow
 from app.modules.lands.schemas import OPEN_DISPUTE_STATUSES, LandBoundaryInput
+from app.modules.notifications.service import notify
 
 
 async def get_land_or_404(db, land_id: str) -> dict:
@@ -33,17 +34,17 @@ def geometry_from_boundary(boundary: LandBoundaryInput):
     try:
         poly = geo.build_polygon([(p.longitude, p.latitude) for p in boundary.points])
     except geo.GeometryError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(status_code=422, detail=str(e))
 
     area = geo.area_m2(poly)
     if area < settings.LAND_MIN_AREA_M2:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=f"Surface trop petite ({area:.0f} m²) : vérifiez que les points font bien le tour de la parcelle.",
         )
     if area > settings.LAND_MAX_AREA_HA * 10_000:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             detail=f"Surface supérieure à {settings.LAND_MAX_AREA_HA:.0f} ha : vérifiez les points GPS.",
         )
 
@@ -139,6 +140,12 @@ async def open_overlap_disputes(db, land: dict, overlaps: list[dict]) -> list[di
                 "updated_at": now,
             })
             dispute_id = str(res.inserted_id)
+            await notify(
+                db, [land["npi_owner"], other["npi_owner"]], "dispute_opened",
+                "Chevauchement de parcelles",
+                f"Deux parcelles se chevauchent sur {o['overlap_m2']:.0f} m² à {land['commune']}. Un agent va examiner la situation.",
+                {"dispute_id": dispute_id, "land_ids": [land_id, other_id]},
+            )
         results.append({"land_id": other_id, "overlap_m2": o["overlap_m2"], "dispute_id": dispute_id})
 
     await refresh_dispute_flags(db, [land_id] + [r["land_id"] for r in results])

@@ -62,17 +62,16 @@ async def get_guide(slug: str, db=Depends(get_database)):
     return _out(await _get_or_404(db, slug))
 
 
-@router.get(
-    "/guides/{slug}/audio",
-    response_class=Response,
-    responses={200: {"content": {"audio/wav": {}}}},
-    summary="Lecture audio de la fiche",
-)
-async def get_guide_audio(slug: str, db=Depends(get_database), _: CurrentUser = Depends(get_current_user)):
+@router.get("/guides/{slug}/audio", response_class=Response, responses=tts.AUDIO_RESPONSES, summary="Lecture audio de la fiche")
+async def get_guide_audio(
+    slug: str,
+    format: tts.AudioFormat = "mp3",
+    db=Depends(get_database),
+    _: CurrentUser = Depends(get_current_user),
+):
     doc = await _get_or_404(db, slug)
     text = f"{doc['title']}. {doc['summary']} " + " ".join(doc.get("steps") or [])
-    wav = await tts.synthesize_wav(db, text)
-    return Response(content=wav, media_type="audio/wav", headers={"Cache-Control": "public, max-age=604800"})
+    return await tts.audio_response(db, text, format, "public, max-age=604800")
 
 
 @router.post("/guides", status_code=status.HTTP_201_CREATED, response_model=GuideOut)

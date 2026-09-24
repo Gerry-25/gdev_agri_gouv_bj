@@ -1,14 +1,24 @@
 import re
+from datetime import timedelta
 from typing import Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from pymongo.errors import DuplicateKeyError
 
 from app.core.database import get_database
 from app.core.security import CurrentUser, get_current_user, get_optional_user, require_roles
 from app.core.utils import parse_object_id, serialize_doc, utcnow
 from app.modules.lands.service import ensure_owner, get_land_or_404
-from app.modules.market.schemas import HarvestOfferCreate, HarvestOfferOut, HarvestOfferUpdate, OfferStatusUpdate
+from app.modules.market.schemas import (
+    HarvestOfferCreate,
+    HarvestOfferOut,
+    HarvestOfferUpdate,
+    InterestCreate,
+    InterestOut,
+    OfferStatusUpdate,
+)
+from app.modules.notifications.service import notify
 
 router = APIRouter(prefix="/market", tags=["Marché Agricole"])
 
@@ -39,18 +49,34 @@ async def _get_offer_or_404(db, offer_id: str) -> dict:
 @router.post("/offers", status_code=status.HTTP_201_CREATED, response_model=HarvestOfferOut)
 async def publish_offer(
     offer: HarvestOfferCreate,
+    response: Response,
     db=Depends(get_database),
     user: CurrentUser = Depends(require_roles("farmer")),
 ):
-    doc = offer.model_dump(mode="json")
+    async def already_published():
+        if offer.client_ref:
+            existing = await db["market_offers"].find_one({"farmer_npi": user.npi, "client_ref": offer.client_ref})
+            if existing:
+                response.status_code = status.HTTP_200_OK
+                return offer_out(existing)
+        return None
+
+    if (dup := await already_published()) is not None:
+        return dup
+    doc = offer.model_dump(mode="json", exclude_none=True)
     if offer.land_id:
         land = await get_land_or_404(db, offer.land_id)
         ensure_owner(land, user)
         doc["location_commune"], doc["department"] = land["commune"], land["department"]
 
     now = utcnow()
-    doc.update({"farmer_npi": user.npi, "status": "active", "created_at": now, "updated_at": now})
-    res = await db["market_offers"].insert_one(doc)
+    doc.update({"farmer_npi": user.npi, "status": "active", "interest_count": 0, "created_at": now, "updated_at": now})
+    try:
+        res = await db["market_offers"].insert_one(doc)
+    except DuplicateKeyError:
+        if (dup := await already_published()) is not None:
+            return dup
+        raise
     doc["_id"] = res.inserted_id
     return offer_out(doc)
 
@@ -132,7 +158,7 @@ async def update_offer_status(
     if payload.status == "sold":
         sold_qty = payload.sold_quantity_kg or doc["quantity_kg"]
         if sold_qty > doc["quantity_kg"]:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="La quantité vendue dépasse la quantité proposée.")
+            raise HTTPException(status_code=422, detail="La quantité vendue dépasse la quantité proposée.")
         changes.update({
             "sold_quantity_kg": sold_qty,
             "sold_unit_price_fcfa": payload.sold_unit_price_fcfa or doc["unit_price_fcfa"],
@@ -140,3 +166,84 @@ async def update_offer_status(
         })
     await db["market_offers"].update_one({"_id": doc["_id"]}, {"$set": changes})
     return offer_out(await db["market_offers"].find_one({"_id": doc["_id"]}))
+
+
+@router.post("/offers/{offer_id}/interest", status_code=status.HTTP_201_CREATED, response_model=InterestOut,
+             summary="Signaler son intérêt au producteur (il est notifié)")
+async def express_interest(
+    offer_id: str,
+    payload: InterestCreate,
+    response: Response,
+    db=Depends(get_database),
+    user: CurrentUser = Depends(get_current_user),
+):
+    offer = await _get_offer_or_404(db, offer_id)
+    if offer["status"] != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cette offre n'est plus disponible.")
+    if offer["farmer_npi"] == user.npi:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="C'est votre propre offre.")
+
+    buyer = await db["users"].find_one({"npi": user.npi}) or {}
+    doc = {**payload.model_dump(), "offer_id": offer_id, "buyer_npi": user.npi, "created_at": utcnow()}
+    try:
+        res = await db["offer_interests"].insert_one(doc)
+    except DuplicateKeyError:
+        response.status_code = status.HTTP_200_OK  # intérêt déjà signalé : pas de nouvelle notification
+        existing = await db["offer_interests"].find_one({"offer_id": offer_id, "buyer_npi": user.npi})
+        return {**serialize_doc(existing), "buyer_name": buyer.get("full_name"), "buyer_phone": buyer.get("phone")}
+
+    await db["market_offers"].update_one({"_id": offer["_id"]}, {"$inc": {"interest_count": 1}})
+    qty = f" pour {_fmt(payload.quantity_kg)} kg" if payload.quantity_kg else ""
+    await notify(db, [offer["farmer_npi"]], "offer_interest", "Un acheteur est intéressé",
+                 f"{buyer.get('full_name', 'Un acheteur')} est intéressé(e) par votre offre {offer['product_name']}{qty}.",
+                 {"offer_id": offer_id, "buyer_phone": buyer.get("phone")})
+    doc["_id"] = res.inserted_id
+    return {**serialize_doc(doc), "buyer_name": buyer.get("full_name"), "buyer_phone": buyer.get("phone")}
+
+
+@router.get("/offers/{offer_id}/interests", response_model=list[InterestOut], summary="Acheteurs intéressés par mon offre")
+async def list_interests(offer_id: str, db=Depends(get_database), user: CurrentUser = Depends(get_current_user)):
+    offer = await _get_offer_or_404(db, offer_id)
+    if offer["farmer_npi"] != user.npi and not user.is_agent:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé.")
+    interests = [d async for d in db["offer_interests"].find({"offer_id": offer_id}).sort("created_at", -1)]
+    buyers = {u["npi"]: u async for u in db["users"].find({"npi": {"$in": [i["buyer_npi"] for i in interests]}})}
+    return [
+        {**serialize_doc(i), "buyer_name": buyers.get(i["buyer_npi"], {}).get("full_name"), "buyer_phone": buyers.get(i["buyer_npi"], {}).get("phone")}
+        for i in interests
+    ]
+
+
+@router.get("/prices", summary="Prix de référence par produit et département (FCFA/kg)")
+async def reference_prices(
+    db=Depends(get_database),
+    product: Optional[str] = Query(None, max_length=100),
+    department: Optional[str] = Query(None, max_length=60),
+    days: int = Query(90, ge=7, le=730),
+):
+    match: dict = {"created_at": {"$gte": utcnow() - timedelta(days=days)}, "status": {"$in": ["active", "sold"]}}
+    if product:
+        match["product_name"] = {"$regex": re.escape(product), "$options": "i"}
+    if department:
+        match["department"] = {"$regex": f"^{re.escape(department)}$", "$options": "i"}
+
+    rows = [r async for r in db["market_offers"].aggregate([
+        {"$match": match},
+        {"$project": {
+            "product": {"$toLower": "$product_name"}, "department": 1, "status": 1,
+            # Pour une vente : prix réellement obtenu ; sinon : prix demandé
+            "price": {"$cond": [{"$eq": ["$status", "sold"]}, "$sold_unit_price_fcfa", "$unit_price_fcfa"]},
+        }},
+        {"$group": {
+            "_id": {"product": "$product", "department": "$department", "status": "$status"},
+            "avg": {"$avg": "$price"}, "min": {"$min": "$price"}, "max": {"$max": "$price"}, "n": {"$sum": 1},
+        }},
+    ])]
+    out: dict[tuple, dict] = {}
+    for r in rows:
+        k = (r["_id"]["product"], r["_id"].get("department"))
+        entry = out.setdefault(k, {"product": k[0], "department": k[1], "sold": None, "offered": None})
+        entry["sold" if r["_id"]["status"] == "sold" else "offered"] = {
+            "avg": round(r["avg"]), "min": round(r["min"]), "max": round(r["max"]), "count": r["n"],
+        }
+    return {"period_days": days, "prices": sorted(out.values(), key=lambda e: (e["product"], e["department"] or ""))}

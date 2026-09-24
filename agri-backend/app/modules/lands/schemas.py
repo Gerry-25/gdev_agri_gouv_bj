@@ -4,9 +4,12 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field
 
 from app.core.benin import CommuneField, DepartmentField, PhoneField
+from app.core.utils import CLIENT_REF_DESCRIPTION, CLIENT_REF_PATTERN
 
 DisputeStatus = Literal["ouvert", "en_mediation", "resolu", "rejete"]
 OPEN_DISPUTE_STATUSES = ["ouvert", "en_mediation"]
+VerificationStatus = Literal["declaree", "verifiee", "rejetee"]
+TransferStatus = Literal["en_attente", "approuve", "rejete", "annule"]
 
 
 class GPSPoint(BaseModel):
@@ -33,6 +36,7 @@ class LandCreateSchema(BaseModel):
     estimated_yield_kg: float = Field(..., ge=0)
     cadastral_reference: Optional[str] = Field(default=None, max_length=50, examples=["REF-BEN-0001"])
     boundary: LandBoundaryInput
+    client_ref: Optional[str] = Field(None, pattern=CLIENT_REF_PATTERN, description=CLIENT_REF_DESCRIPTION)
 
 
 class LandUpdateSchema(BaseModel):
@@ -59,6 +63,11 @@ class LandOut(BaseModel):
     gps_accuracy_mean_m: Optional[float] = None
     capture_method: str
     dispute_flag: bool
+    verification_status: VerificationStatus = "declaree"
+    verification_note: Optional[str] = None
+    verified_at: Optional[datetime] = None
+    ownership_history: list[dict] = []
+    client_ref: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -71,7 +80,7 @@ class OverlapInfo(BaseModel):
 
 class LandRegistrationResult(BaseModel):
     id: str
-    status: Literal["registered", "registered_with_dispute", "updated", "updated_with_dispute"]
+    status: Literal["registered", "registered_with_dispute", "updated", "updated_with_dispute", "already_registered"]
     surface_hectares: float
     overlaps: list[OverlapInfo] = []
     warnings: list[str] = []
@@ -125,3 +134,35 @@ class HarvestOut(BaseModel):
     yield_kg_per_ha: Optional[float] = None
     harvest_date: Optional[date] = None
     created_at: datetime
+
+
+class LandVerification(BaseModel):
+    status: Literal["verifiee", "rejetee"]
+    note: str = Field(..., min_length=3, max_length=1000, description="Ex. : visite terrain du 12/09, bornes conformes")
+
+
+class TransferRequest(BaseModel):
+    new_owner_npi: str = Field(..., pattern=r"^\d{10}$")
+    reason: Literal["vente", "heritage", "donation", "autre"]
+    note: Optional[str] = Field(None, max_length=1000)
+
+
+class TransferDecision(BaseModel):
+    status: Literal["approuve", "rejete", "annule"] = Field(..., description="approuve/rejete : agent ; annule : demandeur")
+    note: Optional[str] = Field(None, max_length=1000)
+
+
+class TransferOut(BaseModel):
+    id: str
+    land_id: str
+    from_npi: str
+    new_owner_npi: str
+    reason: str
+    note: Optional[str] = None
+    status: TransferStatus
+    department: str
+    commune: str
+    decision_note: Optional[str] = None
+    decided_by: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime

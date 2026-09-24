@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import secrets
 from datetime import timedelta
 
 import jwt
@@ -29,6 +32,19 @@ def create_access_token(npi: str, role: str) -> str:
         "exp": now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
     }
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def hash_secret(value: str) -> str:
+    """Empreinte HMAC d'un code ou jeton : seule l'empreinte est stockée en base."""
+    return hmac.new(settings.JWT_SECRET_KEY.encode(), value.encode(), hashlib.sha256).hexdigest()
+
+
+def generate_otp() -> str:
+    return f"{secrets.randbelow(10 ** settings.OTP_LENGTH):0{settings.OTP_LENGTH}d}"
+
+
+def generate_refresh_token() -> str:
+    return secrets.token_urlsafe(48)
 
 
 def _unauthorized(detail: str) -> HTTPException:

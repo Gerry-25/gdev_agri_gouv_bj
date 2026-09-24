@@ -1,4 +1,6 @@
-from pydantic import Field, field_validator
+from typing import Literal
+
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Valeurs considérées comme "non configurées" pour la clé Gemini
@@ -8,6 +10,7 @@ _PLACEHOLDERS = {"", "VOTRE_CLE_GEMINI_ICI", "changeme", "your_api_key"}
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
+    APP_ENV: Literal["development", "demo", "production"] = "development"
     PROJECT_NAME: str = "AgriSmart Benin API"
     API_V1_STR: str = "/api/v1"
 
@@ -17,7 +20,17 @@ class Settings(BaseSettings):
 
     JWT_SECRET_KEY: str = Field(..., min_length=32)
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=1440, gt=0)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, gt=0)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=30, gt=0)
+
+    # Code de connexion par SMS. "simulation" : le code est renvoyé dans la réponse
+    # pour être affiché par le frontend, en attendant un vrai fournisseur SMS.
+    SMS_PROVIDER: Literal["simulation"] = "simulation"
+    OTP_LENGTH: int = Field(default=6, ge=4, le=8)
+    OTP_TTL_SECONDS: int = Field(default=300, gt=0)
+    OTP_RESEND_SECONDS: int = Field(default=60, ge=0)
+    OTP_MAX_PER_HOUR: int = Field(default=5, gt=0)
+    OTP_MAX_ATTEMPTS: int = Field(default=5, gt=0)
 
     # IA
     GEMINI_API_KEY: str = ""
@@ -40,6 +53,7 @@ class Settings(BaseSettings):
 
     # Veille sanitaire : nombre de cas pour qualifier un foyer
     HOTSPOT_MIN_CASES: int = Field(default=3, ge=1)
+    HOTSPOT_WINDOW_DAYS: int = Field(default=30, ge=1)
 
     CORS_ORIGINS: str = "http://localhost:3000"
     MAX_UPLOAD_SIZE_MB: int = Field(default=5, gt=0, le=20)
@@ -50,6 +64,12 @@ class Settings(BaseSettings):
     def _ignore_placeholder_key(cls, v: str) -> str:
         v = v.strip()
         return "" if v in _PLACEHOLDERS else v
+
+    @model_validator(mode="after")
+    def _no_simulation_in_production(self):
+        if self.APP_ENV == "production" and self.SMS_PROVIDER == "simulation":
+            raise ValueError("SMS_PROVIDER=simulation est interdit quand APP_ENV=production : branchez un vrai fournisseur SMS.")
+        return self
 
     @property
     def gemini_enabled(self) -> bool:
