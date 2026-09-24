@@ -128,7 +128,7 @@ async def _check_hotspot(db, doc: dict) -> None:
     if cases != settings.HOTSPOT_MIN_CASES:  # uniquement au franchissement du seuil
         return
     farmers = await db["lands"].distinct("npi_owner", {"department": doc["department"], "commune": doc["commune"]})
-    agents = await db["users"].distinct("npi", {"role": "state_agent"})
+    agents = await db["users"].distinct("npi", {"role": {"$in": ["state_agent", "state_supervisor"]}})
     await notify(
         db, farmers + agents, "sanitary_alert", f"Alerte : {doc['disease_name']}",
         f"{cases} cas de {doc['disease_name']} signalés à {doc['commune']} ces {settings.HOTSPOT_WINDOW_DAYS} derniers jours. "

@@ -9,6 +9,13 @@ PICTOGRAMS = {
     "land_verified": "check",
     "offer_interest": "buyer",
     "sanitary_alert": "bug",
+    "call_published": "megaphone",
+    "call_awarded": "trophy",
+    "call_updated": "megaphone",
+    "contestation_filed": "law",
+    "concession_active": "field",
+    "concession_inspection": "check",
+    "concession_ended": "field",
 }
 
 

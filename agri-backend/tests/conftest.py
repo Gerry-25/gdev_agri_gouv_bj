@@ -35,10 +35,10 @@ def run(coro):
     return asyncio.run(coro)
 
 
-async def _fake_candidates(db, geojson, exclude_id=None):
+async def _fake_candidates(db, geojson, exclude_id=None, collection="lands"):
     """mongomock ne gère pas $geoIntersects : présélection équivalente avec shapely."""
     poly = geo.from_geojson(geojson)
-    return [d async for d in db["lands"].find({}) if d["_id"] != exclude_id and geo.from_geojson(d["boundary"]).intersects(poly)]
+    return [d async for d in db[collection].find({}) if d["_id"] != exclude_id and geo.from_geojson(d["boundary"]).intersects(poly)]
 
 
 FORECAST = {"daily": {
@@ -138,3 +138,26 @@ def png_bytes():
 
 def diagnose(client, headers, **form):
     return client.post(f"{V}/monitoring/diagnose", headers=headers, data=form, files={"file": ("f.png", png_bytes(), "image/png")})
+
+
+def make_supervisor(client, db, npi="8888888888", phone="0188888888"):
+    login(client, npi, phone=phone)
+    run(db.users.update_one({"npi": npi}, {"$set": {"role": "state_supervisor"}}))
+    return login(client, npi, phone=phone)
+
+
+def make_eligible_farmer(client, db, npi, phone, lat, lon, yields=(20000, 22000)):
+    """Exploitant avec une parcelle vérifiée et deux saisons de récolte."""
+    from bson import ObjectId
+    h = login(client, npi, phone=phone)
+    land = create_land(client, h, lat, lon)
+    run(db.lands.update_one({"_id": ObjectId(land["id"])}, {"$set": {"verification_status": "verifiee"}}))
+    for season, y in zip(("2025-A", "2026-A"), yields):
+        r = client.post(f"{V}/lands/{land['id']}/harvests", headers=h, json={"season": season, "actual_yield_kg": y})
+        assert r.status_code == 201, r.text
+    return h, land
+
+
+def domain_payload(lat, lon, d=0.003, **kw):
+    return {"name": "Ferme domaniale test", "department": "Ouémé", "commune": "Dangbo", "land_title_ref": "TF-1234",
+            "suitable_crops": ["Maïs", "Manioc"], "boundary": {"points": square(lat, lon, d)}, **kw}

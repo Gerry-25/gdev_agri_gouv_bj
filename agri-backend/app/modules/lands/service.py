@@ -68,19 +68,19 @@ def geometry_from_boundary(boundary: LandBoundaryInput):
     return poly, info, warnings
 
 
-async def candidate_lands(db, geojson: dict, exclude_id: ObjectId | None = None) -> list[dict]:
-    """Présélection par l'index 2dsphere des parcelles qui touchent le contour."""
+async def candidate_lands(db, geojson: dict, exclude_id: ObjectId | None = None, collection: str = "lands") -> list[dict]:
+    """Présélection par l'index 2dsphere des contours (parcelles ou terres de l'État) qui touchent le polygone."""
     query: dict = {"boundary": {"$geoIntersects": {"$geometry": geojson}}}
     if exclude_id is not None:
         query["_id"] = {"$ne": exclude_id}
-    cursor = db["lands"].find(query, {"boundary": 1, "npi_owner": 1, "department": 1, "commune": 1})
+    cursor = db[collection].find(query, {"boundary": 1, "npi_owner": 1, "department": 1, "commune": 1, "name": 1, "status": 1})
     return [d async for d in cursor]
 
 
-async def find_overlaps(db, poly, exclude_id: ObjectId | None = None) -> list[dict]:
+async def find_overlaps(db, poly, exclude_id: ObjectId | None = None, collection: str = "lands") -> list[dict]:
     """Chevauchements réels au-delà de la tolérance (les bordures partagées sont ignorées)."""
     overlaps = []
-    for land in await candidate_lands(db, geo.to_geojson(poly), exclude_id):
+    for land in await candidate_lands(db, geo.to_geojson(poly), exclude_id, collection):
         area = geo.overlap_area_m2(poly, geo.from_geojson(land["boundary"]))
         if area > settings.LAND_OVERLAP_TOLERANCE_M2:
             overlaps.append({"land": land, "overlap_m2": round(area, 1)})
@@ -100,10 +100,42 @@ def reject_own_overlaps(overlaps: list[dict], user: CurrentUser) -> list[dict]:
     return overlaps
 
 
-async def refresh_dispute_flags(db, land_ids: list[str]) -> None:
+async def refresh_dispute_flags(db, land_ids: list[str], domain_ids: list[str] | None = None) -> None:
     for lid in set(land_ids):
         n = await db["disputes"].count_documents({"land_ids": lid, "status": {"$in": OPEN_DISPUTE_STATUSES}})
         await db["lands"].update_one({"_id": ObjectId(lid)}, {"$set": {"dispute_flag": n > 0}})
+    for did in set(domain_ids or []):
+        n = await db["disputes"].count_documents({"domain_id": did, "status": {"$in": OPEN_DISPUTE_STATUSES}})
+        await db["state_domains"].update_one({"_id": ObjectId(did)}, {"$set": {"dispute_flag": n > 0}})
+
+
+async def open_domain_disputes(db, land: dict, domain_overlaps: list[dict]) -> list[dict]:
+    """Une parcelle privée empiète sur une terre du domaine privé de l'État : litige avec l'État."""
+    land_id, now, results = str(land["_id"]), utcnow(), []
+    for o in domain_overlaps:
+        domain = o["land"]
+        domain_id = str(domain["_id"])
+        existing = await db["disputes"].find_one({
+            "type": "chevauchement_domaine_etat", "land_ids": land_id, "domain_id": domain_id,
+            "status": {"$in": OPEN_DISPUTE_STATUSES},
+        })
+        if existing:
+            dispute_id = str(existing["_id"])
+        else:
+            res = await db["disputes"].insert_one({
+                "type": "chevauchement_domaine_etat", "status": "ouvert", "land_ids": [land_id], "domain_id": domain_id,
+                "parties_npi": [land["npi_owner"]], "reported_by": "systeme",
+                "reason": f"La parcelle empiète de {o['overlap_m2']} m² sur la terre de l'État « {domain.get('name', domain_id)} ».",
+                "department": land["department"], "commune": land["commune"], "overlap_area_m2": o["overlap_m2"],
+                "history": [{"status": "ouvert", "by": "systeme", "at": now}], "created_at": now, "updated_at": now,
+            })
+            dispute_id = str(res.inserted_id)
+            await notify(db, [land["npi_owner"]], "dispute_opened", "Chevauchement avec une terre de l'État",
+                         f"Votre parcelle à {land['commune']} empiète sur une terre du domaine de l'État. Un agent va examiner la situation.",
+                         {"dispute_id": dispute_id, "land_id": land_id})
+        results.append({"domain_id": domain_id, "overlap_m2": o["overlap_m2"], "dispute_id": dispute_id})
+    await refresh_dispute_flags(db, [land_id], [r["domain_id"] for r in results])
+    return results
 
 
 async def open_overlap_disputes(db, land: dict, overlaps: list[dict]) -> list[dict]:

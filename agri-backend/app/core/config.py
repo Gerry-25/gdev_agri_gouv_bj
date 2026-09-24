@@ -55,6 +55,15 @@ class Settings(BaseSettings):
     HOTSPOT_MIN_CASES: int = Field(default=3, ge=1)
     HOTSPOT_WINDOW_DAYS: int = Field(default=30, ge=1)
 
+    # Score de performance des exploitants
+    PERFORMANCE_MIN_SEASONS: int = Field(default=2, ge=1, description="Saisons de récolte vérifiées requises pour être éligible")
+
+    # Appels à candidatures sur le domaine privé de l'État (durées à ajuster selon les textes en vigueur)
+    CALL_MIN_OPEN_DAYS: int = Field(default=15, ge=1, description="Durée minimale de publicité d'un appel")
+    CALL_CONTEST_DAYS: int = Field(default=15, ge=0, description="Délai de contestation après validation de l'attribution")
+    AWARD_ACCEPTANCE_DAYS: int = Field(default=15, ge=1, description="Délai laissé au lauréat pour accepter")
+    MAX_ACTIVE_CONCESSIONS_PER_FARMER: int = Field(default=1, ge=1)
+
     CORS_ORIGINS: str = "http://localhost:3000"
     MAX_UPLOAD_SIZE_MB: int = Field(default=5, gt=0, le=20)
     STATE_REVENUE_RATE: float = Field(default=0.015, ge=0, le=1)

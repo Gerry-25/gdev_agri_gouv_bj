@@ -14,6 +14,7 @@ import math
 import random
 from datetime import timedelta
 
+from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorClient
 from shapely.geometry import Polygon
 
@@ -23,6 +24,7 @@ from app.core.database import create_indexes
 from app.core.utils import utcnow
 from app.modules.knowledge.seed import seed_guides
 from app.modules.monitoring.schemas import SEVERITY_COLORS
+from app.modules.performance.service import compute_scores
 
 # (département, commune, latitude, longitude, cultures principales, côtière)
 COMMUNES = [
@@ -87,10 +89,13 @@ DEMO_ACCOUNTS = [
     ("0100000001", "+2290190000001", "Démo Exploitant", "farmer"),
     ("0100000002", "+2290190000002", "Démo Acheteur", "buyer"),
     ("0100000003", "+2290190000003", "Démo Agent État", "state_agent"),
+    ("0100000004", "+2290190000004", "Démo Superviseur État", "state_supervisor"),
 ]
 
 COLLECTIONS = ["users", "lands", "disputes", "transfers", "harvests", "market_offers", "offer_interests",
-               "phytosanitary_alerts", "notifications"]
+               "phytosanitary_alerts", "notifications", "state_domains", "calls", "applications", "contestations",
+               "concessions", "concession_reports", "concession_inspections"]
+SEASONS = ["2025-A", "2025-B", "2026-A"]
 
 
 def _random_polygon(rng: random.Random, lat0: float, lon0: float, area_m2: float) -> Polygon:
@@ -111,6 +116,115 @@ def _offset(rng, lat, lon, max_km, north_only):
     dy = rng.uniform(0.3 if north_only else -1, 1) * max_km * 1000
     dx = rng.uniform(-1, 1) * max_km * 1000
     return lat + dy / 110_540, lon + dx / (111_320 * math.cos(math.radians(lat)))
+
+
+STATE_DOMAINS = [
+    # (commune index, nom, surface ha, étape)
+    (0, "Ferme domaniale de Dangbo", 25, "appel_ouvert"),
+    (15, "Périmètre agricole de Parakou - lot 3", 40, "appel_cloture"),
+    (13, "Domaine agricole de Savalou", 30, "concession_active"),
+    (17, "Ferme semencière de Banikoara", 20, "disponible"),
+    (4, "Réserve foncière d'Allada", 15, "disponible"),
+]
+
+
+async def _seed_state_domains(db, rng, polys, farmer_npis, now) -> dict:
+    counts = {k: 0 for k in ("state_domains", "calls", "applications", "concessions", "concession_reports", "concession_inspections")}
+    agent, supervisor = DEMO_ACCOUNTS[2][0], DEMO_ACCOUNTS[3][0]
+    scores = await compute_scores(db, farmer_npis)
+    ranked = sorted((s for s in scores.values() if s["eligible"]), key=lambda s: -s["score"])
+
+    for idx, name, hectares, stage in STATE_DOMAINS:
+        dept, commune, lat, lon, crops, coastal = COMMUNES[idx]
+        for _ in range(50):
+            clat, clon = _offset(rng, lat, lon, 9, coastal)
+            poly = _random_polygon(rng, clat, clon, hectares * 10_000)
+            if not any(poly.intersects(p) for p in polys):
+                break
+        polys.append(poly)
+        area = geo.area_m2(poly)
+        created = now - timedelta(days=120)
+        domain = {"name": name, "department": dept, "commune": commune, "locality": None, "land_title_ref": f"TF-DEMO-{idx:03d}",
+                  "suitable_crops": crops, "description": "Terre du domaine privé de l'État (données de démonstration).",
+                  "boundary": geo.to_geojson(poly), "centroid": geo.to_geojson(geo.centroid_point(poly)),
+                  "surface_hectares": round(area / 10_000, 4), "perimeter_m": round(geo.perimeter_m(poly), 1),
+                  "points_count": len(poly.exterior.coords) - 1, "gps_accuracy_mean_m": 2.0, "capture_method": "survey",
+                  "status": "disponible", "dispute_flag": False, "current_call_id": None, "current_concession_id": None,
+                  "created_by": agent, "is_demo": True, "created_at": created, "updated_at": created}
+        domain_id = str((await db["state_domains"].insert_one(domain)).inserted_id)
+        counts["state_domains"] += 1
+        if stage == "disponible":
+            continue
+
+        closed = stage != "appel_ouvert"
+        opens = now - timedelta(days=60 if closed else 5)
+        closes = now - timedelta(days=10) if closed else now + timedelta(days=25)
+        call = {"title": f"Appel à candidatures - {name}", "description": f"Mise en valeur de {round(area / 10_000)} ha du domaine privé de l'État.",
+                "cahier_des_charges": "Mettre en valeur au moins 80 % de la surface dans les 12 mois suivant l'acte. "
+                                      "Pratiques durables, rotation des cultures, déclaration des récoltes à chaque saison.",
+                "allowed_crops": crops, "contract_type": "concession", "duration_years": 5, "annual_fee_fcfa_per_ha": 15000,
+                "mise_en_valeur_months": 12, "min_score": 45, "eligible_departments": [], "opens_at": opens, "closes_at": closes,
+                "domain_id": domain_id, "domain_name": name, "department": dept, "commune": commune,
+                "surface_hectares": domain["surface_hectares"], "status": "publie", "applications_count": 0, "award": None,
+                "created_by": agent, "published_by": supervisor, "published_at": opens,
+                "history": [{"action": "creation", "by": agent, "note": None, "at": opens},
+                            {"action": "publication", "by": supervisor, "note": None, "at": opens}],
+                "is_demo": True, "created_at": opens, "updated_at": opens}
+        call_id = str((await db["calls"].insert_one(call)).inserted_id)
+        counts["calls"] += 1
+        await db["state_domains"].update_one({"_id": ObjectId(domain_id)}, {"$set": {"status": "appel_en_cours", "current_call_id": call_id}})
+
+        # Candidats : les mieux classés (hors compte démo, pour qu'il puisse candidater lui-même)
+        candidates = [s for s in ranked if s["npi"] != DEMO_ACCOUNTS[0][0]][idx % 5: idx % 5 + (2 if stage == "appel_ouvert" else 4)]
+        apps = []
+        for c in candidates:
+            apps.append({"proposed_crop": rng.choice(crops), "planned_yield_kg": round(hectares * CROPS[crops[0]][0][1]),
+                         "motivation": "Exploitant expérimenté souhaitant étendre sa production sur une terre de l'État.",
+                         "experience_years": rng.randint(3, 25), "call_id": call_id, "farmer_npi": c["npi"], "farmer_name": c["full_name"],
+                         "score_at_submission": c["score"], "score_components": c["components"], "status": "deposee",
+                         "is_demo": True, "created_at": opens + timedelta(days=2), "updated_at": opens + timedelta(days=2)})
+        if apps:
+            res = await db["applications"].insert_many(apps)
+            await db["calls"].update_one({"_id": ObjectId(call_id)}, {"$set": {"applications_count": len(apps)}})
+            counts["applications"] += len(apps)
+
+        if stage == "concession_active" and apps:
+            best = apps[0]
+            start = now - timedelta(days=200)
+            award = {"application_id": str(res.inserted_ids[0]), "farmer_npi": best["farmer_npi"], "farmer_name": best["farmer_name"],
+                     "score": best["score_at_submission"], "proposed_by": agent, "proposed_at": closes, "justification": "Meilleur classement.",
+                     "deviation_from_ranking": False, "approved_by": supervisor, "approved_at": closes,
+                     "contest_until": closes, "acceptance_deadline": closes, "accepted_at": closes}
+            fee = round(15000 * domain["surface_hectares"])
+            conc = {"call_id": call_id, "domain_id": domain_id, "domain_name": name, "department": dept, "commune": commune,
+                    "surface_hectares": domain["surface_hectares"], "farmer_npi": best["farmer_npi"], "farmer_name": best["farmer_name"],
+                    "contract_type": "concession", "duration_years": 5, "crop_type": best["proposed_crop"],
+                    "planned_yield_kg": best["planned_yield_kg"], "annual_fee_fcfa": fee, "mise_en_valeur_months": 12,
+                    "cahier_des_charges": call["cahier_des_charges"], "status": "active", "act_ref": "ARR-DEMO-2026-001",
+                    "act_date": start, "authority": f"Préfecture ({dept})", "start_date": start,
+                    "end_date": start.replace(year=start.year + 5), "mise_en_valeur_deadline": start + timedelta(days=365),
+                    "payments": [{"year": start.year, "amount_fcfa": fee, "receipt_ref": "Q-DEMO-001", "recorded_by": agent, "recorded_at": start}],
+                    "latest_mise_en_valeur_pct": 70, "latest_compliant": True, "last_inspection_at": now - timedelta(days=30),
+                    "history": [], "is_demo": True, "created_at": start, "updated_at": now}
+            conc_id = str((await db["concessions"].insert_one(conc)).inserted_id)
+            counts["concessions"] += 1
+            await db["calls"].update_one({"_id": ObjectId(call_id)}, {"$set": {"status": "concede", "award": award, "concession_id": conc_id}})
+            await db["applications"].update_one({"_id": res.inserted_ids[0]}, {"$set": {"status": "retenue"}})
+            await db["applications"].update_many({"call_id": call_id, "status": "deposee"}, {"$set": {"status": "non_retenue"}})
+            await db["state_domains"].update_one({"_id": ObjectId(domain_id)}, {"$set": {"status": "attribue", "current_call_id": None,
+                                                                                         "current_concession_id": conc_id}})
+            area_cult = round(domain["surface_hectares"] * 0.7, 2)
+            await db["concession_reports"].insert_one({"season": "2026-A", "crop_type": best["proposed_crop"], "area_cultivated_ha": area_cult,
+                                                       "actual_yield_kg": round(area_cult * CROPS[best["proposed_crop"]][0][1]),
+                                                       "concession_id": conc_id, "farmer_npi": best["farmer_npi"], "department": dept,
+                                                       "commune": commune, "expected_yield_kg": round(best["planned_yield_kg"] * 0.7),
+                                                       "is_demo": True, "created_at": now - timedelta(days=60)})
+            await db["concession_inspections"].insert_one({"mise_en_valeur_pct": 70, "compliant": True, "note": "Culture bien conduite.",
+                                                           "concession_id": conc_id, "inspector_npi": agent, "is_demo": True,
+                                                           "created_at": now - timedelta(days=30)})
+            counts["concession_reports"] += 1
+            counts["concession_inspections"] += 1
+    return counts
 
 
 async def reset_demo(db) -> dict:
@@ -171,7 +285,7 @@ async def seed_demo(db, farmers: int = 80, seed: int = 229) -> dict:
                 "surface_hectares": round(area / 10_000, 4), "perimeter_m": round(geo.perimeter_m(poly), 1),
                 "points_count": len(poly.exterior.coords) - 1, "gps_accuracy_mean_m": round(rng.uniform(3, 9), 1),
                 "capture_method": "gps_walk", "dispute_flag": False,
-                "verification_status": rng.choices(["declaree", "verifiee", "rejetee"], [55, 42, 3])[0],
+                "verification_status": "verifiee" if npi == DEMO_ACCOUNTS[0][0] else rng.choices(["declaree", "verifiee", "rejetee"], [40, 57, 3])[0],
                 "boundary_history": [], "ownership_history": [], "is_demo": True, "created_at": created, "updated_at": created,
             })
     res = await db["lands"].insert_many(lands)
@@ -181,7 +295,7 @@ async def seed_demo(db, farmers: int = 80, seed: int = 229) -> dict:
 
     # --- Litiges : quelques chevauchements volontaires
     disputes = []
-    for land in rng.sample(lands, 6):
+    for land in rng.sample([l for l in lands if l["npi_owner"] != DEMO_ACCOUNTS[0][0]], 6):
         other_npi = rng.choice([n for n in farmer_npis if n != land["npi_owner"]])
         base = geo.from_geojson(land["boundary"])
         shifted = Polygon([(x + 0.0004, y + 0.0002) for x, y in base.exterior.coords])
@@ -219,13 +333,20 @@ async def seed_demo(db, farmers: int = 80, seed: int = 229) -> dict:
 
     # --- Récoltes réelles (saison précédente)
     harvests = []
+    skill = {npi: rng.uniform(0.6, 1.25) for npi in farmer_npis}  # certains exploitants sont plus performants
+    skill[DEMO_ACCOUNTS[0][0]] = 1.2
     for land in lands:
-        if rng.random() < 0.6:
-            actual = round(land["estimated_yield_kg"] * rng.uniform(0.65, 1.1))
-            harvests.append({"land_id": str(land["_id"]), "npi_owner": land["npi_owner"], "season": "2026-A",
-                             "crop_type": land["crop_type"], "actual_yield_kg": actual, "harvest_date": "2026-08-15",
-                             "department": land["department"], "commune": land["commune"],
-                             "estimated_yield_kg": land["estimated_yield_kg"], "is_demo": True, "created_at": now})
+        demo = land["npi_owner"] == DEMO_ACCOUNTS[0][0]
+        if not demo and rng.random() < 0.3:
+            continue
+        for season in SEASONS:
+            if demo or rng.random() < 0.8:
+                actual = round(land["estimated_yield_kg"] * skill[land["npi_owner"]] * rng.uniform(0.85, 1.1))
+                harvests.append({"land_id": str(land["_id"]), "npi_owner": land["npi_owner"], "season": season,
+                                 "crop_type": land["crop_type"], "actual_yield_kg": actual,
+                                 "harvest_date": f"{season[:4]}-{'07' if season.endswith('A') else '12'}-15",
+                                 "department": land["department"], "commune": land["commune"],
+                                 "estimated_yield_kg": land["estimated_yield_kg"], "is_demo": True, "created_at": now})
     if harvests:
         await db["harvests"].insert_many(harvests)
     counts["harvests"] = len(harvests)
@@ -298,6 +419,9 @@ async def seed_demo(db, farmers: int = 80, seed: int = 229) -> dict:
             n = sum(1 for i in interests if i["offer_id"] == oid)
             await db["market_offers"].update_one({"_id": next(r for r in res.inserted_ids if str(r) == oid)}, {"$set": {"interest_count": n}})
     counts["offer_interests"] = len(interests)
+
+    # --- Domaine privé de l'État : une terre à chaque étape de la procédure
+    counts.update(await _seed_state_domains(db, rng, polys, farmer_npis, now))
 
     # --- Quelques notifications pour les comptes de démonstration
     notes = [

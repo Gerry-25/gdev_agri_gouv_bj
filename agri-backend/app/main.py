@@ -7,12 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import close_mongo_connection, connect_to_mongo, get_database
 from app.modules.auth.router import router as auth_router
+from app.modules.domains.router import router as domains_router
 from app.modules.knowledge.router import router as knowledge_router
 from app.modules.knowledge.seed import seed_guides
 from app.modules.lands.router import router as lands_router
 from app.modules.market.router import router as market_router
 from app.modules.monitoring.router import router as monitoring_router
 from app.modules.notifications.router import router as notifications_router
+from app.modules.performance.router import router as performance_router
 from app.modules.state.router import router as state_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
@@ -49,7 +51,8 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-for r in (auth_router, lands_router, monitoring_router, market_router, state_router, knowledge_router, notifications_router):
+for r in (auth_router, lands_router, monitoring_router, market_router, state_router, knowledge_router, notifications_router,
+          performance_router, domains_router):
     app.include_router(r, prefix=settings.API_V1_STR)
 
 

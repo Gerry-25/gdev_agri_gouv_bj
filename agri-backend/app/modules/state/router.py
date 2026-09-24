@@ -62,6 +62,13 @@ async def get_state_metrics(db=Depends(get_database), days: int = Query(30, ge=1
         f"phytosanitary_threats_last_{days}_days": await db["phytosanitary_alerts"].count_documents({**_THREAT, "observed_at": {"$gte": since}}),
         "market_active_volume_fcfa": active_value,
         "market_sold_volume_fcfa": sold_value,
+        "state_domains_total": await db["state_domains"].count_documents({"status": {"$ne": "retire"}}),
+        "state_domains_surface_ha": round(await _sum(db["state_domains"], {"status": {"$ne": "retire"}}, "$surface_hectares"), 2),
+        "state_domains_attributed": await db["state_domains"].count_documents({"status": "attribue"}),
+        "calls_open": await db["calls"].count_documents({"status": "publie"}),
+        "concessions_active": await db["concessions"].count_documents({"status": "active"}),
+        "concession_fees_collected_fcfa": (await _aggregate(db["concessions"], [
+            {"$unwind": "$payments"}, {"$group": {"_id": None, "v": {"$sum": "$payments.amount_fcfa"}}}]) or [{"v": 0}])[0]["v"],
         "revenue_rate": rate,
         "revenue_from_declared_sales_fcfa": round(sold_value * rate, 2),
         "revenue_potential_active_offers_fcfa": round(active_value * rate, 2),

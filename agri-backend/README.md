@@ -21,6 +21,7 @@ docker compose exec api python -m app.scripts.seed_demo  # données de démonstr
 | Exploitant (parcelles à Dangbo) | 0100000001 | 0190000001 |
 | Acheteur | 0100000002 | 0190000002 |
 | Agent de l'État | 0100000003 | 0190000003 |
+| Superviseur de l'État | 0100000004 | 0190000004 |
 
 `seed_demo --reset` régénère, `seed_demo --reset-only` supprime : seules les données marquées `is_demo` sont touchées.
 
@@ -49,7 +50,9 @@ en français prêt à afficher (ou une liste de champs invalides pour les erreur
 4. `POST /auth/logout` `{refresh_token}` ou `POST /auth/logout-all`.
 
 Limites : 1 code par minute, 5 par heure, 5 essais par code. Réponses 429 avec en-tête `Retry-After`.
-Le rôle `state_agent` s'attribue avec `python -m app.scripts.promote_user <NPI> state_agent`.
+Les rôles `state_agent` et `state_supervisor` s'attribuent avec
+`python -m app.scripts.promote_user <NPI> state_agent|state_supervisor`.
+Le superviseur a tous les droits d'un agent, plus la validation des décisions sensibles.
 
 ### Mode hors ligne
 
@@ -92,9 +95,64 @@ Les géométries sont en **GeoJSON** `[longitude, latitude]`, compatibles Leafle
 - Pictogrammes météo : `sun`, `rain`, `rain_heavy`, `wind`, `heat`, `seed`.
 - Pictogrammes des fiches : `forbidden`, `shield`, `law`, `sprout`, `question`, `calendar`, `leaf`, `map`, `info`.
 - Notifications (`type` / `pictogram`) : `dispute_opened` / `dispute_updated` (law), `transfer_requested` /
-  `transfer_updated` (handshake), `land_verified` (check), `offer_interest` (buyer), `sanitary_alert` (bug).
+  `transfer_updated` (handshake), `land_verified` (check), `offer_interest` (buyer), `sanitary_alert` (bug),
+  `call_published` / `call_updated` (megaphone), `call_awarded` (trophy), `contestation_filed` (law),
+  `concession_active` / `concession_ended` (field), `concession_inspection` (check).
 - Audio : `…/audio?format=mp3` (défaut, ≈ 4 Ko/s) ou `format=wav`.
 - Images protégées : `image_url` d'un diagnostic exige l'en-tête `Authorization`.
+
+## Domaine privé de l'État : attribution par appel à candidatures
+
+La procédure suit la logique de la concession sur le domaine privé prévue par le Code foncier et domanial :
+attribution à charge de mise en valeur selon un cahier des charges, pour une durée déterminée et contre une
+redevance annuelle. **L'application prépare et trace la procédure ; l'acte officiel reste délivré par
+l'autorité compétente**, et sa référence est enregistrée pour activer la concession.
+
+| Étape | Qui | Route |
+|---|---|---|
+| Enregistrer la terre (contour GPS, référence du titre) | agent | `POST /domains` |
+| Rédiger l'appel (cahier des charges, durée, redevance/ha, délai de mise en valeur, score minimal) | agent | `POST /domains/{id}/calls` |
+| Publier (durée minimale de publicité ; exploitants éligibles notifiés) | superviseur **≠ rédacteur** | `POST /calls/{id}/publish` |
+| Vérifier son éligibilité, candidater, retirer sa candidature | exploitant | `GET /calls/{id}/eligibility/me`, `POST·DELETE /calls/{id}/applications…` |
+| Classement des candidatures (score figé au dépôt) | agent | `GET /calls/{id}/applications` |
+| Proposer un lauréat après clôture, avec justification | agent | `POST /calls/{id}/award-proposal` |
+| Valider ou refuser la proposition | superviseur **≠ auteur de la proposition** | `POST /calls/{id}/award-decision` |
+| Contester pendant le délai | autres candidats | `POST /calls/{id}/contestations` |
+| Trancher une contestation (fondée → attribution annulée) | superviseur | `PATCH /contestations/{id}` |
+| Accepter ou se désister dans le délai | lauréat | `POST /calls/{id}/acceptance` |
+| Enregistrer l'acte officiel → concession active | agent | `POST /concessions/{id}/official-act` |
+| Déclarer les récoltes | titulaire | `POST /concessions/{id}/reports` |
+| Inspections de mise en valeur, paiements de redevance | agent | `POST /concessions/{id}/inspections`, `/payments` |
+| Retrait (défaut de mise en valeur, non-paiement…) ou fin | superviseur | `POST /concessions/{id}/termination` |
+| Annuler ou déclarer l'appel infructueux | superviseur | `POST /calls/{id}/cancel`, `/unsuccessful` |
+
+Garde-fous :
+- un agent ne publie pas, et personne ne valide sa propre proposition (principe des « quatre yeux ») ;
+- tout lauréat choisi hors de l'ordre du classement est signalé (`deviation_from_ranking`) ;
+- l'acte ne peut être enregistré qu'après le délai de contestation et sans contestation ouverte ;
+- une terre en litige ne peut pas faire l'objet d'un appel ; une parcelle privée qui empiète sur une terre
+  de l'État ouvre automatiquement un litige ;
+- chaque étape est horodatée dans l'historique de l'appel ; la vue publique (`GET /calls`) publie le
+  cahier des charges, le nombre de candidats et le nom du lauréat retenu.
+
+Les durées (publicité, contestation, acceptation) sont configurables dans `.env` et **doivent être
+alignées sur les textes applicables** (Code foncier et domanial et ses décrets, pratiques de l'ANDF).
+
+### Score de performance des exploitants
+
+Score sur 100, détaillé critère par critère (`GET /performance/me`, `GET /state/farmers/performance`) :
+
+| Critère | Poids | Calcul |
+|---|---|---|
+| Productivité | 40 % | rendement/ha comparé à la médiane de la même culture dans le même département (médiane = 50) |
+| Fiabilité des prévisions | 15 % | écart moyen entre récolte prévue et réelle |
+| Régularité | 15 % | stabilité d'une saison à l'autre (neutre à 50 avec moins de 2 saisons) |
+| Conformité | 15 % | part des parcelles vérifiées, pénalités pour parcelle rejetée ou en litige |
+| Marché | 15 % | ventes déclarées sur 12 mois |
+
+Seules les récoltes sur parcelles **vérifiées par un agent** et les récoltes déclarées sur une concession
+sont comptées. Éligibilité : au moins `PERFORMANCE_MIN_SEASONS` saisons et aucun litige ouvert.
+Le calcul se fait à la demande ; à grande échelle, il faudra le précalculer par une tâche planifiée.
 
 ## Endpoints
 
@@ -122,6 +180,12 @@ Les géométries sont en **GeoJSON** `[longitude, latitude]`, compatibles Leafle
 | knowledge | `GET /knowledge/categories`, `/guides`, `/guides/{slug}` | public |
 | | `GET /knowledge/guides/{slug}/audio` | connecté |
 | | `POST·PUT·DELETE /knowledge/guides` | state_agent |
+| performance | `GET /performance/me` | connecté |
+| | `GET /state/farmers/performance`, `/state/farmers/{npi}/performance` | agent |
+| domaine de l'État | voir le tableau de la procédure ci-dessus ; `GET /calls`, `GET /calls/{id}` | public |
+| | `GET /domains`, `/domains/geojson`, `/domains/{id}`, `PATCH /domains/{id}`, `GET /calls/manage`, `/calls/{id}/manage`, `/calls/{id}/contestations`, `GET /concessions` | agent |
+| | `POST /domains/{id}/retire` | superviseur |
+| | `GET /calls/applications/me`, `GET /concessions/me`, `GET /concessions/{id}` | connecté (titulaire ou agent) |
 | notifications | `GET /notifications/me`, `/me/unread-count`, `POST /me/read-all`, `PATCH /{id}/read` | connecté |
 
 ## Brancher un vrai fournisseur SMS

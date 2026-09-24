@@ -1,6 +1,6 @@
 """Attribue un rôle à un utilisateur existant.
 
-Usage (Docker) : docker compose exec api python -m app.scripts.promote_user <NPI> [state_agent|farmer|buyer]
+Usage (Docker) : docker compose exec api python -m app.scripts.promote_user <NPI> [state_agent|state_supervisor|farmer|buyer]
 """
 import asyncio
 import sys

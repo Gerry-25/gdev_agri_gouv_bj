@@ -13,6 +13,9 @@ from app.core.utils import utcnow
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+# Le superviseur dispose de tous les droits d'un agent, plus la validation des décisions sensibles
+AGENT_ROLES = ("state_agent", "state_supervisor")
+
 
 class CurrentUser(BaseModel):
     npi: str
@@ -20,7 +23,11 @@ class CurrentUser(BaseModel):
 
     @property
     def is_agent(self) -> bool:
-        return self.role == "state_agent"
+        return self.role in AGENT_ROLES
+
+    @property
+    def is_supervisor(self) -> bool:
+        return self.role == "state_supervisor"
 
 
 def create_access_token(npi: str, role: str) -> str:
@@ -87,8 +94,10 @@ async def get_optional_user(
 def require_roles(*roles: str):
     """Dépendance qui restreint une route à certains rôles."""
 
+    allowed = set(roles) | ({"state_supervisor"} if "state_agent" in roles else set())
+
     async def checker(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
-        if user.role not in roles:
+        if user.role not in allowed:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Accès refusé pour ce rôle.")
         return user
 

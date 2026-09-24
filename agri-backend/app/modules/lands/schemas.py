@@ -73,7 +73,8 @@ class LandOut(BaseModel):
 
 
 class OverlapInfo(BaseModel):
-    land_id: str
+    land_id: Optional[str] = None
+    domain_id: Optional[str] = Field(None, description="Renseigné si le chevauchement concerne une terre de l'État")
     overlap_m2: float
     dispute_id: str
 
@@ -104,6 +105,7 @@ class DisputeOut(BaseModel):
     type: str
     status: DisputeStatus
     land_ids: list[str]
+    domain_id: Optional[str] = None
     parties_npi: list[str]
     reported_by: str
     reason: str

@@ -14,6 +14,7 @@ class UserRole(str, Enum):
     FARMER = "farmer"
     BUYER = "buyer"
     STATE_AGENT = "state_agent"
+    STATE_SUPERVISOR = "state_supervisor"
 
 
 class OtpRequest(BaseModel):

@@ -93,6 +93,10 @@ async def register_land(
     disputes = await service.open_overlap_disputes(db, doc, overlaps) if overlaps else []
     if disputes:
         warnings.append("Votre parcelle chevauche celle d'un autre exploitant : un litige a été ouvert et sera examiné par un agent.")
+    domain_overlaps = await service.find_overlaps(db, poly, collection="state_domains")
+    if domain_overlaps:
+        disputes += await service.open_domain_disputes(db, doc, domain_overlaps)
+        warnings.append("Votre parcelle empiète sur une terre de l'État : un litige a été ouvert et sera examiné par un agent.")
     return LandRegistrationResult(
         id=str(result.inserted_id),
         status="registered_with_dispute" if disputes else "registered",
@@ -162,7 +166,7 @@ async def update_dispute(
         "$set": {"status": payload.status, "resolution_note": payload.resolution_note, "handled_by": agent.npi, "updated_at": now},
         "$push": {"history": {"status": payload.status, "by": agent.npi, "note": payload.resolution_note, "at": now}},
     })
-    await service.refresh_dispute_flags(db, dispute["land_ids"])
+    await service.refresh_dispute_flags(db, dispute["land_ids"], [dispute["domain_id"]] if dispute.get("domain_id") else None)
     labels = {"en_mediation": "en médiation", "resolu": "résolu", "rejete": "rejeté"}
     await notify(db, dispute["parties_npi"], "dispute_updated", "Mise à jour d'un litige",
                  f"Le litige à {dispute.get('commune', '')} est {labels[payload.status]} : {payload.resolution_note}",
@@ -284,6 +288,9 @@ async def update_land_boundary(
     })
     land.update(info)
     disputes = await service.open_overlap_disputes(db, land, overlaps) if overlaps else []
+    domain_overlaps = await service.find_overlaps(db, poly, collection="state_domains")
+    if domain_overlaps:
+        disputes += await service.open_domain_disputes(db, land, domain_overlaps)
     return LandRegistrationResult(
         id=land_id,
         status="updated_with_dispute" if disputes else "updated",

@@ -70,6 +70,17 @@ async def create_indexes(database: AsyncIOMotorDatabase) -> None:
     await database["notifications"].create_index([("npi", 1), ("read", 1), ("created_at", -1)])
     await database["notifications"].create_index("created_at", expireAfterSeconds=90 * 24 * 3600)
 
+    # Domaine privé de l'État
+    await database["state_domains"].create_index([("boundary", "2dsphere")])
+    await database["state_domains"].create_index("status")
+    await database["calls"].create_index([("domain_id", 1), ("status", 1)])
+    await database["calls"].create_index([("status", 1), ("published_at", -1)])
+    await database["applications"].create_index([("call_id", 1), ("farmer_npi", 1)], unique=True)
+    await database["contestations"].create_index([("call_id", 1), ("npi", 1)], unique=True)
+    await database["concessions"].create_index([("farmer_npi", 1), ("status", 1)])
+    await database["concession_reports"].create_index([("concession_id", 1), ("season", 1), ("crop_type", 1)], unique=True)
+    await database["concession_inspections"].create_index("concession_id")
+
     await database["guides"].create_index("slug", unique=True)
     await database["guides"].create_index("category")
     # Les fichiers audio en cache expirent après 30 jours
