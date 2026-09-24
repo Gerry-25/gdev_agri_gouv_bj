@@ -19,8 +19,27 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=1440, gt=0)
 
+    # IA
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
+    GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
+    TTS_VOICE: str = "Kore"
+    TTS_MAX_CHARS: int = Field(default=1200, gt=0)
+
+    # Météo (Open-Meteo : gratuit, sans clé)
+    OPEN_METEO_FORECAST_URL: str = "https://api.open-meteo.com/v1/forecast"
+    OPEN_METEO_GEOCODING_URL: str = "https://geocoding-api.open-meteo.com/v1/search"
+    WEATHER_CACHE_MINUTES: int = Field(default=30, gt=0)
+
+    # Parcelles
+    LAND_MIN_AREA_M2: float = Field(default=50, gt=0)
+    LAND_MAX_AREA_HA: float = Field(default=10_000, gt=0)
+    LAND_MAX_POINTS: int = Field(default=1000, ge=3)
+    # Chevauchement toléré (imprécision GPS des téléphones, bordures partagées)
+    LAND_OVERLAP_TOLERANCE_M2: float = Field(default=25, ge=0)
+
+    # Veille sanitaire : nombre de cas pour qualifier un foyer
+    HOTSPOT_MIN_CASES: int = Field(default=3, ge=1)
 
     CORS_ORIGINS: str = "http://localhost:3000"
     MAX_UPLOAD_SIZE_MB: int = Field(default=5, gt=0, le=20)

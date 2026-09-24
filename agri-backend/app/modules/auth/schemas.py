@@ -3,8 +3,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.core.benin import PhoneField
+
 NPI_PATTERN = r"^\d{10}$"
-PHONE_PATTERN = r"^\+?\d{8,15}$"
 
 
 class UserRole(str, Enum):
@@ -15,7 +16,7 @@ class UserRole(str, Enum):
 
 class CitizenAuthSchema(BaseModel):
     npi: str = Field(..., description="Numéro Personnel d'Identification (10 chiffres)", pattern=NPI_PATTERN)
-    phone: str = Field(..., description="Téléphone mobile de l'exploitant", pattern=PHONE_PATTERN)
+    phone: PhoneField = Field(..., description="Téléphone mobile (01XXXXXXXX ou +22901XXXXXXXX)")
     full_name: str = Field(..., min_length=2, max_length=120)
     # Le rôle "state_agent" ne peut pas être choisi à l'inscription :
     # il est attribué par un administrateur (voir app/scripts/promote_user.py)

@@ -5,8 +5,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.database import close_mongo_connection, connect_to_mongo
+from app.core.database import close_mongo_connection, connect_to_mongo, get_database
 from app.modules.auth.router import router as auth_router
+from app.modules.knowledge.router import router as knowledge_router
+from app.modules.knowledge.seed import seed_guides
 from app.modules.lands.router import router as lands_router
 from app.modules.market.router import router as market_router
 from app.modules.monitoring.router import router as monitoring_router
@@ -19,15 +21,17 @@ logger = logging.getLogger("agri")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await connect_to_mongo()
+    if n := await seed_guides(get_database()):
+        logger.info("%d fiche(s) pratique(s) d'exemple ajoutée(s).", n)
     if not settings.gemini_enabled:
-        logger.warning("GEMINI_API_KEY non configurée : le diagnostic IA fonctionne en mode simulation.")
+        logger.warning("GEMINI_API_KEY non configurée : diagnostic IA en mode simulation, lecture audio désactivée.")
     yield
     await close_mongo_connection()
 
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version="1.1.0",
+    version="2.0.0",
     description="Backend Monolithique Modulaire pour le Challenge Agriculture Intelligente",
     lifespan=lifespan,
 )
@@ -42,7 +46,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-for r in (auth_router, lands_router, monitoring_router, market_router, state_router):
+for r in (auth_router, lands_router, monitoring_router, market_router, state_router, knowledge_router):
     app.include_router(r, prefix=settings.API_V1_STR)
 
 

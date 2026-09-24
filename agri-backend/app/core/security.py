@@ -15,6 +15,10 @@ class CurrentUser(BaseModel):
     npi: str
     role: str
 
+    @property
+    def is_agent(self) -> bool:
+        return self.role == "state_agent"
+
 
 def create_access_token(npi: str, role: str) -> str:
     now = utcnow()
@@ -35,14 +39,10 @@ def _unauthorized(detail: str) -> HTTPException:
     )
 
 
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
-) -> CurrentUser:
-    if credentials is None:
-        raise _unauthorized("Authentification requise.")
+def _decode(token: str) -> CurrentUser:
     try:
         payload = jwt.decode(
-            credentials.credentials,
+            token,
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM],
             options={"require": ["sub", "exp"]},
@@ -52,6 +52,20 @@ async def get_current_user(
     except jwt.InvalidTokenError:
         raise _unauthorized("Jeton invalide.")
     return CurrentUser(npi=payload["sub"], role=payload.get("role", "farmer"))
+
+
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> CurrentUser:
+    if credentials is None:
+        raise _unauthorized("Authentification requise.")
+    return _decode(credentials.credentials)
+
+
+async def get_optional_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> CurrentUser | None:
+    return _decode(credentials.credentials) if credentials else None
 
 
 def require_roles(*roles: str):
