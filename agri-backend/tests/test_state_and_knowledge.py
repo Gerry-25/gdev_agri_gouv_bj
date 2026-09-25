@@ -70,3 +70,15 @@ def test_notifications_read(client, db):
 def test_health(client):
     r = client.get("/health")
     assert r.status_code in (200, 503)
+
+
+def test_crop_yield_is_per_season(client, db):
+    """Deux saisons de 7 t sur ~1 ha : le rendement est d'environ 7 t/ha, pas 14."""
+    a = login(client, "1111111111")
+    agent = make_agent(client, db)
+    land = create_land(client, a)
+    for season in ("2025-A", "2026-A"):
+        client.post(f"{V}/lands/{land['id']}/harvests", headers=a, json={"season": season, "actual_yield_kg": 7000})
+    crop = client.get(f"{V}/state/stats/crops", headers=agent).json()[0]
+    assert crop["actual_production_kg"] == 14000 and crop["seasons"] == 2
+    assert 6800 < crop["yield_kg_per_ha"] < 7300

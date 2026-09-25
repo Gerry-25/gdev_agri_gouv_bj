@@ -1,7 +1,7 @@
 # AgriSmart Bénin : fonctionnalités de la plateforme
 
 > Document de référence tenu à jour à chaque ajout ou modification.
-> **Backend : 4.0.1 · Frontend : 0.4.0 (intégration du template : étape 3 sur 5)**, dernière mise à jour : 24/09/2026.
+> **Backend : 4.1.0 · Frontend : 0.5.0 (intégration du template : étape 4 sur 5)**, dernière mise à jour : 24/09/2026.
 > Détails techniques : `README.md` de chaque dossier (`agri-backend`, `agri-frontend`).
 
 ## Sommaire
@@ -57,10 +57,10 @@
 
 ## 4. Marché agricole
 
-- **Annonces de récolte.** Produit, quantité, prix et lieu. Une annonce peut être rattachée à une parcelle pour la traçabilité.
+- **Annonces de récolte.** Produit, quantité, prix, lieu et description (qualité, conditionnement, livraison). Une annonce peut être rattachée à une parcelle pour la traçabilité ; elle est alors marquée « parcelle vérifiée » si un agent a vérifié la parcelle.
 - **Catalogue public** filtrable par commune, département, produit et prix maximum.
 - **Mise en relation directe.** Un bouton d'appel et un lien WhatsApp avec message pré-rempli.
-- **Intérêt des acheteurs.** Un acheteur signale son intérêt, et le producteur est notifié et voit ses coordonnées.
+- **Intérêt des acheteurs.** Un acheteur signale son intérêt, et le producteur est notifié et voit ses coordonnées. L'acheteur retrouve les offres qu'il suit.
 - **Cycle de vie.** Une annonce peut être modifiée, marquée vendue (avec quantité et prix réels) ou retirée.
 - **Prix de référence** par produit et département, en distinguant le prix demandé du prix obtenu.
 
@@ -175,7 +175,7 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 | 1. Structure et accueil | En-tête, navigation par rôle, connexion, notifications, langue, « Mon exploitation », accueil agent et superviseur | **Livrée** |
 | 2. Cadastre | Carte, relevé GPS, fiche parcelle, plan de fumure | **Livrée** |
 | 3. Diagnostic et stockage | Scanner photo, questions de suivi, météo, conseiller de stockage | **Livrée** |
-| 4. Marché et supervision | Catalogue, annonces avec aide IA, portail acheteur, supervision, litiges, note hebdomadaire | À faire |
+| 4. Marché et supervision | Catalogue, annonces avec aide IA, portail acheteur, supervision, litiges, note hebdomadaire | **Livrée** |
 | 5. Terres de l'État et conseils | Préparation des terres, plan IA, appels, candidatures, concessions, fiches et assistant vocal | À faire |
 
 ### Fonctionnalités livrées
@@ -221,6 +221,18 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
   - saisie d'un contrôle (humidité, insectes, moisissures) ;
   - conseil « vendre maintenant, vendre une partie ou stocker » avec le prix récent ;
   - clôture du stock avec les pertes.
+- **Marché** :
+  - **catalogue** filtrable (produit, département, prix maximum, parcelles vérifiées uniquement), avec appel, WhatsApp et signalement d'intérêt ;
+  - **prix de référence** sur 90 jours, en distinguant le prix de vente constaté du prix demandé ;
+  - **publication assistée par l'IA** : quelques mots et une photo suffisent pour obtenir un titre et une description honnête, avec un prix conseillé ;
+  - **gestion de mes annonces** : déclarer une vente, modifier, retirer ou remettre en vente, voir les acheteurs intéressés. Hors ligne, l'annonce est publiée au retour du réseau.
+- **Portail acheteur** : offres disponibles, volume, part issue de parcelles vérifiées, offres suivies avec relance WhatsApp.
+- **Supervision** :
+  - **statistiques** par département puis par commune, et par culture, avec un rendement calculé sur la surface réellement récoltée ;
+  - **stocks et pertes** déclarés ;
+  - **litiges** : synthèse neutre et anonymisée par l'IA, puis décision motivée et communiquée aux parties ;
+  - **transferts** de propriété à approuver ou rejeter ;
+  - **note hebdomadaire** nationale ou départementale.
 - **Retraits** : le sélecteur de rôle, le téléchargement du code source et les libellés inexacts (« Vérifiée ANDF », classement fictif).
 
 ## 11. Points en attente
@@ -250,6 +262,7 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 
 | Version | Date | Modifications |
 |---|---|---|
+| Front 0.5.0 / 4.1.0 | 25/09/2026 | Intégration du template, étape 4 : Marché (catalogue, prix, publication assistée par l'IA, gestion des annonces), portail acheteur, Supervision (statistiques, stocks, litiges avec synthèse IA, transferts, note hebdomadaire). Backend : description des annonces, filtre « parcelles vérifiées », offres suivies par l'acheteur, correction du rendement par culture (il cumulait toutes les saisons). |
 | Front 0.4.0 / 4.0.2 | 25/09/2026 | Intégration du template, étape 3 : Diagnostic (photo compressée, résultat audio, questions de suivi, historique, envoi différé hors ligne, veille sanitaire des agents) et conseiller de stockage. Backend : l'historique des questions est renvoyé avec le diagnostic. |
 | Front 0.3.0 | 25/09/2026 | Intégration du template, étape 2 : Cadastre (cartes MapLibre, fond vectoriel hébergé et hors ligne, vue satellite Esri, relevé GPS ou tracé sur carte, fiche parcelle avec récoltes, sol et plan de fumure, carte nationale des agents). |
 | Front 0.2.0 / 4.0.1 | 25/09/2026 | Intégration du template, étape 1 : application unique (structure, connexion, notifications, « Mon exploitation », accueil agent et superviseur), remplace les deux applications précédentes. Backend : rééquilibrage des priorités d'inspection (les anciennes déclarations ne masquent plus les foyers sanitaires). |

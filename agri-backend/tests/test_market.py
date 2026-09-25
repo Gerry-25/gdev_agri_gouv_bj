@@ -74,3 +74,25 @@ def test_reference_prices(client):
     client.patch(f"{V}/market/offers/{o['id']}/status", headers=a, json={"status": "sold", "sold_unit_price_fcfa": 180})
     p = client.get(f"{V}/market/prices?product=manioc").json()["prices"][0]
     assert p["offered"]["avg"] == 150 and p["offered"]["count"] == 2 and p["sold"]["avg"] == 180
+
+
+def test_description_verified_origin_and_my_interests(client, db):
+    from bson import ObjectId
+    from tests.conftest import create_land
+    a = login(client, "1111111111")
+    buyer = login(client, "3333333333", phone="0163000000", role="buyer")
+    land = create_land(client, a)
+    verified = client.post(f"{V}/market/offers", headers=a, json={**OFFER, "land_id": land["id"], "description": "Manioc frais, livraison possible à Porto-Novo"}).json()
+    other = client.post(f"{V}/market/offers", headers=a, json={**OFFER, "location_commune": "Allada"}).json()
+    assert verified["description"].startswith("Manioc frais") and verified["origin_verified"] is False
+    run(db.lands.update_one({"_id": ObjectId(land["id"])}, {"$set": {"verification_status": "verifiee"}}))
+    only = client.get(f"{V}/market/offers?verified_origin=true").json()
+    assert [o["id"] for o in only] == [verified["id"]] and only[0]["origin_verified"] is True
+    assert len(client.get(f"{V}/market/offers").json()) == 2
+    assert client.patch(f"{V}/market/offers/{other['id']}", headers=a, json={"description": "Sacs de 50 kg"}).json()["description"] == "Sacs de 50 kg"
+
+    client.post(f"{V}/market/offers/{verified['id']}/interest", headers=buyer, json={"quantity_kg": 300, "message": "Livraison à Cotonou ?"})
+    mine = client.get(f"{V}/market/interests/me", headers=buyer).json()
+    assert len(mine) == 1 and mine[0]["offer"]["product_name"] == "Manioc frais" and mine[0]["offer"]["whatsapp_url"].startswith("https://wa.me/")
+    assert mine[0]["quantity_kg"] == 300 and "buyer_npi" not in mine[0]
+    assert client.get(f"{V}/market/interests/me", headers=a).json() == []

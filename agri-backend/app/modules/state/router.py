@@ -121,16 +121,23 @@ async def stats_by_crop(db=Depends(get_database), department: Optional[str] = No
         {"$group": {"_id": "$crop_type", "parcels": {"$sum": 1}, "surface_ha": {"$sum": "$surface_hectares"},
                     "estimated_production_kg": {"$sum": "$estimated_yield_kg"}}},
     ])
-    harvests = {r["_id"]: r["v"] for r in await _aggregate(db["harvests"], [
-        {"$match": base}, {"$group": {"_id": "$crop_type", "v": {"$sum": "$actual_yield_kg"}}},
-    ])}
+    # Rendement = récolte totale / surface réellement récoltée (une parcelle compte une fois par saison récoltée)
+    surfaces = {str(l["_id"]): l["surface_hectares"] async for l in db["lands"].find(base, {"surface_hectares": 1})}
+    actual, harvested_ha, seasons = {}, {}, {}
+    async for h in db["harvests"].find(base, {"crop_type": 1, "actual_yield_kg": 1, "land_id": 1, "season": 1}):
+        c = h["crop_type"]
+        actual[c] = actual.get(c, 0) + h["actual_yield_kg"]
+        harvested_ha[c] = harvested_ha.get(c, 0) + surfaces.get(h["land_id"], 0)
+        seasons.setdefault(c, set()).add(h["season"])
     out = []
     for r in lands:
-        actual = harvests.get(r["_id"], 0)
+        c = r["_id"]
         out.append({
-            "crop_type": r["_id"], "parcels": r["parcels"], "surface_ha": round(r["surface_ha"], 2),
-            "estimated_production_kg": r["estimated_production_kg"], "actual_production_kg": actual,
-            "yield_kg_per_ha": round(actual / r["surface_ha"], 1) if r["surface_ha"] and actual else None,
+            "crop_type": c, "parcels": r["parcels"], "surface_ha": round(r["surface_ha"], 2),
+            "estimated_production_kg": r["estimated_production_kg"],
+            "actual_production_kg": actual.get(c, 0),  # cumul de toutes les saisons déclarées
+            "seasons": len(seasons.get(c, ())),
+            "yield_kg_per_ha": round(actual[c] / harvested_ha[c], 1) if harvested_ha.get(c) else None,
         })
     return sorted(out, key=lambda c: -c["surface_ha"])
 

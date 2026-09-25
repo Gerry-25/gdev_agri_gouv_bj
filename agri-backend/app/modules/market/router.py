@@ -17,6 +17,7 @@ from app.core.security import CurrentUser, get_current_user, get_optional_user, 
 from app.core.utils import parse_object_id, serialize_doc, utcnow
 from app.modules.lands.service import ensure_owner, get_land_or_404
 from app.modules.market.schemas import (
+    MyInterestOut,
     HarvestOfferCreate,
     HarvestOfferOut,
     HarvestOfferUpdate,
@@ -43,6 +44,19 @@ def offer_out(doc: dict) -> dict:
     out["tel_url"] = f"tel:{doc['contact_phone']}"
     out["whatsapp_url"] = f"https://wa.me/{digits}?text={quote(message)}"
     return out
+
+
+async def _verified_land_ids(db, land_ids) -> set[str]:
+    ids = [parse_object_id(i) for i in {i for i in land_ids if i}]
+    if not ids:
+        return set()
+    return {str(l["_id"]) async for l in db["lands"].find({"_id": {"$in": ids}, "verification_status": "verifiee"}, {"_id": 1})}
+
+
+async def offers_out(db, docs: list[dict]) -> list[dict]:
+    """Ajoute l'indicateur « origine vérifiée » (parcelle vérifiée par un agent)."""
+    verified = await _verified_land_ids(db, [d.get("land_id") for d in docs])
+    return [{**offer_out(d), "origin_verified": d.get("land_id") in verified} for d in docs]
 
 
 async def _get_offer_or_404(db, offer_id: str) -> dict:
@@ -94,10 +108,13 @@ async def list_market_offers(
     department: Optional[str] = Query(None, max_length=60),
     product: Optional[str] = Query(None, max_length=100),
     max_price: Optional[float] = Query(None, gt=0),
+    verified_origin: bool = Query(False, description="Seulement les récoltes issues de parcelles vérifiées"),
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
 ):
     filters: dict = {"status": "active"}
+    if verified_origin:
+        filters["land_id"] = {"$in": [str(i) for i in await db["lands"].distinct("_id", {"verification_status": "verifiee"})]}
     if commune:
         filters["location_commune"] = {"$regex": f"^{re.escape(commune)}$", "$options": "i"}
     if department:
@@ -107,13 +124,13 @@ async def list_market_offers(
     if max_price:
         filters["unit_price_fcfa"] = {"$lte": max_price}
     cursor = db["market_offers"].find(filters).sort("created_at", -1).skip(skip).limit(limit)
-    return [offer_out(d) async for d in cursor]
+    return await offers_out(db, [d async for d in cursor])
 
 
 @router.get("/offers/me", response_model=list[HarvestOfferOut], summary="Mes offres (tous statuts)")
 async def my_offers(db=Depends(get_database), user: CurrentUser = Depends(get_current_user)):
     cursor = db["market_offers"].find({"farmer_npi": user.npi}).sort("created_at", -1)
-    return [offer_out(d) async for d in cursor]
+    return await offers_out(db, [d async for d in cursor])
 
 
 @router.get("/offers/{offer_id}", response_model=HarvestOfferOut)
@@ -122,7 +139,7 @@ async def get_offer(offer_id: str, db=Depends(get_database), user: CurrentUser |
     # Les offres vendues ou retirées ne sont visibles que par leur auteur et les agents
     if doc["status"] != "active" and not (user and (user.npi == doc["farmer_npi"] or user.is_agent)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Offre introuvable.")
-    return offer_out(doc)
+    return (await offers_out(db, [doc]))[0]
 
 
 @router.patch("/offers/{offer_id}", response_model=HarvestOfferOut)
@@ -316,3 +333,12 @@ async def offer_draft(
     draft, run_id = await ai_service.generate(db, purpose="offer_draft", schema=OfferDraft, prompt=prompt, parts=parts, requested_by=user.npi)
     return {**draft.model_dump(), "price": await _price_basis(db, draft.product_name.split()[0], department), **ai_service.ai_meta(run_id),
             "note": "Brouillon à relire : le prix et le texte restent à votre choix."}
+
+
+@router.get("/interests/me", response_model=list[MyInterestOut], summary="Offres pour lesquelles j'ai signalé mon intérêt")
+async def my_interests(db=Depends(get_database), user: CurrentUser = Depends(get_current_user)):
+    interests = [i async for i in db["offer_interests"].find({"buyer_npi": user.npi}).sort("created_at", -1)]
+    ids = [parse_object_id(i["offer_id"]) for i in interests]
+    offers = {str(o["_id"]): o async for o in db["market_offers"].find({"_id": {"$in": ids}})} if ids else {}
+    enriched = {o["id"]: o for o in await offers_out(db, list(offers.values()))}
+    return [{**serialize_doc({k: v for k, v in i.items() if k != "buyer_npi"}), "offer": enriched.get(i["offer_id"])} for i in interests]

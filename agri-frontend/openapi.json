@@ -3,7 +3,7 @@
  "info": {
   "title": "AgriSmart Benin API",
   "description": "Backend Monolithique Modulaire pour le Challenge Agriculture Intelligente",
-  "version": "4.0.1"
+  "version": "4.0.2"
  },
  "paths": {
   "/api/v1/auth/otp/request": {
@@ -2436,6 +2436,18 @@
       }
      },
      {
+      "name": "verified_origin",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "description": "Seulement les récoltes issues de parcelles vérifiées",
+       "default": false,
+       "title": "Verified Origin"
+      },
+      "description": "Seulement les récoltes issues de parcelles vérifiées"
+     },
+     {
       "name": "skip",
       "in": "query",
       "required": false,
@@ -2952,6 +2964,36 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    },
+    "security": [
+     {
+      "HTTPBearer": []
+     }
+    ]
+   }
+  },
+  "/api/v1/market/interests/me": {
+   "get": {
+    "tags": [
+     "Marché Agricole"
+    ],
+    "summary": "Offres pour lesquelles j'ai signalé mon intérêt",
+    "operationId": "my_interests_api_v1_market_interests_me_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/MyInterestOut"
+         },
+         "type": "array",
+         "title": "Response My Interests Api V1 Market Interests Me Get"
         }
        }
       }
@@ -9665,6 +9707,19 @@
        }
       ]
      },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 800
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description",
+      "description": "Qualité, conditionnement, conditions de livraison"
+     },
      "client_ref": {
       "anyOf": [
        {
@@ -9788,6 +9843,23 @@
       "title": "Interest Count",
       "default": 0
      },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
+     },
+     "origin_verified": {
+      "type": "boolean",
+      "title": "Origin Verified",
+      "description": "Récolte rattachée à une parcelle vérifiée par un agent",
+      "default": false
+     },
      "client_ref": {
       "anyOf": [
        {
@@ -9886,6 +9958,18 @@
        }
       ],
       "title": "Contact Phone"
+     },
+     "description": {
+      "anyOf": [
+       {
+        "type": "string",
+        "maxLength": 800
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Description"
      }
     },
     "type": "object",
@@ -10824,6 +10908,63 @@
      "status"
     ],
     "title": "LotStatus"
+   },
+   "MyInterestOut": {
+    "properties": {
+     "id": {
+      "type": "string",
+      "title": "Id"
+     },
+     "offer_id": {
+      "type": "string",
+      "title": "Offer Id"
+     },
+     "message": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Message"
+     },
+     "quantity_kg": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quantity Kg"
+     },
+     "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Created At"
+     },
+     "offer": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/HarvestOfferOut"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "Absente si l'offre a été supprimée"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "offer_id",
+     "created_at"
+    ],
+    "title": "MyInterestOut"
    },
    "NotificationOut": {
     "properties": {

@@ -17,6 +17,7 @@ class HarvestOfferCreate(BaseModel):
     land_id: Optional[str] = Field(None, description="Parcelle d'origine : renseigne la localisation et assure la traçabilité")
     location_commune: Optional[CommuneField] = None
     department: Optional[DepartmentField] = None
+    description: Optional[str] = Field(None, max_length=800, description="Qualité, conditionnement, conditions de livraison")
     client_ref: Optional[str] = Field(None, pattern=CLIENT_REF_PATTERN, description=CLIENT_REF_DESCRIPTION)
 
     @model_validator(mode="after")
@@ -31,6 +32,7 @@ class HarvestOfferUpdate(BaseModel):
     quantity_kg: Optional[float] = Field(None, gt=0)
     unit_price_fcfa: Optional[float] = Field(None, gt=0)
     contact_phone: Optional[PhoneField] = None
+    description: Optional[str] = Field(None, max_length=800)
 
 
 class OfferStatusUpdate(BaseModel):
@@ -54,6 +56,8 @@ class HarvestOfferOut(BaseModel):
     sold_unit_price_fcfa: Optional[float] = None
     sold_at: Optional[datetime] = None
     interest_count: int = 0
+    description: Optional[str] = None
+    origin_verified: bool = Field(False, description="Récolte rattachée à une parcelle vérifiée par un agent")
     client_ref: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -75,3 +79,12 @@ class InterestOut(BaseModel):
     message: Optional[str] = None
     quantity_kg: Optional[float] = None
     created_at: datetime
+
+
+class MyInterestOut(BaseModel):
+    id: str
+    offer_id: str
+    message: Optional[str] = None
+    quantity_kg: Optional[float] = None
+    created_at: datetime
+    offer: Optional[HarvestOfferOut] = Field(None, description="Absente si l'offre a été supprimée")

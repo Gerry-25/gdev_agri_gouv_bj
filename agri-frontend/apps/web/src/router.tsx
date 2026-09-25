@@ -5,6 +5,7 @@ import { AppShell } from "./components/AppShell";
 import { RequireAuth } from "./components/Guards";
 import { Card } from "./components/ui";
 import { AgentHome } from "./pages/AgentHome";
+import { BuyerHome } from "./pages/BuyerHome";
 import { FarmerDashboard } from "./pages/FarmerDashboard";
 import { LoginPage } from "./pages/LoginPage";
 import { MorePage, OutboxPage, Planned } from "./pages/misc";
@@ -18,7 +19,7 @@ const cadastre = (name: "CadastrePage" | "NewParcelPage" | "ParcelDetailPage") =
 function Home() {
   const { user } = useSession();
   if (user?.role === "farmer") return <FarmerDashboard />;
-  if (user?.role === "buyer") return <Planned title="Portail acheteur" step={4} />;
+  if (user?.role === "buyer") return <BuyerHome />;
   return <AgentHome />;
 }
 
@@ -40,8 +41,8 @@ export const router = createBrowserRouter([
       { path: "cadastre/:id/contour", lazy: cadastre("NewParcelPage") },
       { path: "diagnostic", lazy: async () => ({ Component: (await import("./pages/diagnostic/DiagnosticPage")).DiagnosticPage }) },
       { path: "stockage", lazy: async () => ({ Component: (await import("./pages/storage/StoragePage")).StoragePage }) },
-      { path: "marche", element: <Planned title="Marché agricole" step={4} /> },
-      { path: "supervision", element: <Planned title="Supervision nationale" step={4} /> },
+      { path: "marche", lazy: async () => ({ Component: (await import("./pages/market/MarketPage")).MarketPage }) },
+      { path: "supervision", lazy: async () => ({ Component: (await import("./pages/supervision/SupervisionPage")).SupervisionPage }) },
       { path: "concessions", element: <Planned title="Terres de l'État" step={5} /> },
       { path: "reglementation", element: <Planned title="Conseils et réglementation" step={5} /> },
       { path: "plus", element: <MorePage /> },

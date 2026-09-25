@@ -16,6 +16,10 @@ export function registerSenders() {
     ensureSent(await api.POST("/api/v1/monitoring/diagnose", { body: form as never }));
   });
 
+  registerSender("offer", async (item) => {
+    ensureSent(await api.POST("/api/v1/market/offers", { body: item.payload as never }));
+  });
+
   registerSender("stock", async (item) => {
     ensureSent(await api.POST("/api/v1/storage/lots", { body: item.payload as never }));
   });

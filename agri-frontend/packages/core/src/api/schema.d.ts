@@ -830,6 +830,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/market/interests/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Offres pour lesquelles j'ai signalé mon intérêt */
+        get: operations["my_interests_api_v1_market_interests_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/state/dashboard-metrics": {
         parameters: {
             query?: never;
@@ -3059,6 +3076,11 @@ export interface components {
             location_commune?: string | null;
             department?: components["schemas"]["Department"] | null;
             /**
+             * Description
+             * @description Qualité, conditionnement, conditions de livraison
+             */
+            description?: string | null;
+            /**
              * Client Ref
              * @description Identifiant unique généré par l'application (ex. UUID). Un envoi rejoué avec le même client_ref (file d'attente hors ligne) renvoie la ressource existante au lieu d'un doublon.
              */
@@ -3100,6 +3122,14 @@ export interface components {
              * @default 0
              */
             interest_count?: number;
+            /** Description */
+            description?: string | null;
+            /**
+             * Origin Verified
+             * @description Récolte rattachée à une parcelle vérifiée par un agent
+             * @default false
+             */
+            origin_verified?: boolean;
             /** Client Ref */
             client_ref?: string | null;
             /**
@@ -3133,6 +3163,8 @@ export interface components {
             unit_price_fcfa?: number | null;
             /** Contact Phone */
             contact_phone?: string | null;
+            /** Description */
+            description?: string | null;
         };
         /** HarvestOut */
         HarvestOut: {
@@ -3470,6 +3502,24 @@ export interface components {
             status: "vendu" | "consomme" | "perdu" | "transfere";
             /** Quantity Lost Kg */
             quantity_lost_kg?: number | null;
+        };
+        /** MyInterestOut */
+        MyInterestOut: {
+            /** Id */
+            id: string;
+            /** Offer Id */
+            offer_id: string;
+            /** Message */
+            message?: string | null;
+            /** Quantity Kg */
+            quantity_kg?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** @description Absente si l'offre a été supprimée */
+            offer?: components["schemas"]["HarvestOfferOut"] | null;
         };
         /** NotificationOut */
         NotificationOut: {
@@ -5563,6 +5613,8 @@ export interface operations {
                 department?: string | null;
                 product?: string | null;
                 max_price?: number | null;
+                /** @description Seulement les récoltes issues de parcelles vérifiées */
+                verified_origin?: boolean;
                 skip?: number;
                 limit?: number;
             };
@@ -5906,6 +5958,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    my_interests_api_v1_market_interests_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyInterestOut"][];
                 };
             };
         };
