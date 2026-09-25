@@ -235,7 +235,7 @@ export function ChatInterface({ fullPage = false, onClose }: ChatInterfaceProps)
 
   const fallbackSpeak = (text: string) => {
     const langTag = selectedLang === "en" ? "en-US" : "fr-FR";
-    speak(text, langTag);
+    speak(text, langTag, () => setPlayingMessageId(null));
   };
 
   // Démarrer l'enregistrement micro

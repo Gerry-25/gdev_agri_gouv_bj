@@ -1,4 +1,4 @@
-import { api, useSession } from "@agri/core";
+import { api, speak, stopSpeaking, useSession } from "@agri/core";
 import { Square, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { buttonClass } from "./ui";
@@ -21,32 +21,73 @@ async function fetchAudio(p: AudioPath, language?: string): Promise<Blob> {
   return res.data as unknown as Blob;
 }
 
-/** Lecture audio (générée par le serveur, gardée en cache) : pour les exploitants qui lisent difficilement. */
-export function AudioButton({ path, label = "Écouter" }: { path: AudioPath; label?: string }) {
+/** Lecture audio (générée par le serveur, gardée en cache) avec fallback vocal local : pour les exploitants qui lisent difficilement. */
+export function AudioButton({
+  path,
+  label = "Écouter",
+  text,
+}: {
+  path: AudioPath;
+  label?: string;
+  text?: string;
+}) {
   const { user } = useSession();
   const [state, setState] = useState<"idle" | "loading" | "playing" | "error">("idle");
   const audio = useRef<HTMLAudioElement | null>(null);
-  useEffect(() => () => audio.current?.pause(), []);
+
+  useEffect(() => {
+    return () => {
+      audio.current?.pause();
+      stopSpeaking();
+    };
+  }, []);
+
+  const playFallback = (content: string) => {
+    const lang = user?.preferred_language === "en" ? "en-US" : "fr-FR";
+    speak(content, lang, () => setState("idle"));
+    setState("playing");
+  };
 
   const toggle = async () => {
     if (state === "playing") {
       audio.current?.pause();
+      stopSpeaking();
       return setState("idle");
     }
     setState("loading");
     try {
-      const url = URL.createObjectURL(await fetchAudio(path, user?.preferred_language));
-      audio.current = new Audio(url);
-      audio.current.onended = () => setState("idle");
-      await audio.current.play();
+      const blob = await fetchAudio(path, user?.preferred_language);
+      const url = URL.createObjectURL(blob);
+      const player = new Audio(url);
+      audio.current = player;
+      player.onended = () => setState("idle");
+      player.onerror = () => {
+        if (text) {
+          playFallback(text);
+        } else {
+          setState("error");
+        }
+      };
+      await player.play();
       setState("playing");
     } catch {
-      setState("error");
+      if (text) {
+        playFallback(text);
+      } else {
+        setState("error");
+      }
     }
   };
+
   return (
     <span className="inline-flex flex-col items-start gap-1">
-      <button type="button" onClick={toggle} disabled={state === "loading"} aria-busy={state === "loading" || undefined} className={buttonClass("soft", "min-h-11")}>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={state === "loading"}
+        aria-busy={state === "loading" || undefined}
+        className={buttonClass("soft", "min-h-11")}
+      >
         {state === "playing" ? <Square className="w-4 h-4" aria-hidden /> : <Volume2 className="w-4 h-4" aria-hidden />}
         {state === "loading" ? "Préparation…" : state === "playing" ? "Arrêter" : label}
       </button>

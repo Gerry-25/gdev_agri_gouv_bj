@@ -10,6 +10,7 @@ import wave
 from typing import Literal
 
 import lameenc
+import httpx
 from fastapi import HTTPException, Response, status
 from google.genai import types
 
@@ -46,11 +47,57 @@ def pcm_to_mp3(pcm: bytes) -> bytes:
     return bytes(enc.encode(pcm) + enc.flush())
 
 
+async def _fallback_tts(text: str, language: str = "fr") -> bytes:
+    """Synthèse vocale de secours via Google Translate TTS (sans quota journalier)."""
+    tl = "en" if language == "en" else "fr"
+    words = text.split()
+    chunks: list[str] = []
+    current_chunk: list[str] = []
+    current_len = 0
+    for w in words:
+        if current_len + len(w) + 1 > 170:
+            if current_chunk:
+                chunks.append(" ".join(current_chunk))
+                current_chunk = [w]
+                current_len = len(w)
+            else:
+                chunks.append(w[:170])
+                current_chunk = []
+                current_len = 0
+        else:
+            current_chunk.append(w)
+            current_len += len(w) + 1
+    if current_chunk:
+        chunks.append(" ".join(current_chunk))
+
+    parts: list[bytes] = []
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        for chunk in chunks:
+            chunk_str = chunk.strip()
+            if not chunk_str:
+                continue
+            r = await client.get(
+                "https://translate.google.com/translate_tts",
+                params={"ie": "UTF-8", "tl": tl, "client": "tw-ob", "q": chunk_str},
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            )
+            if r.status_code == 200 and r.content:
+                parts.append(r.content)
+            else:
+                logger.warning("Translate TTS returned status %s for chunk", r.status_code)
+    if not parts:
+        raise RuntimeError("Aucun segment audio généré par le moteur vocal de secours.")
+    return b"".join(parts)
+
+
 async def synthesize(db, text: str, fmt: AudioFormat = "mp3", language: str = "fr") -> bytes:
     if ai.ai_client is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Lecture audio indisponible : clé Gemini non configurée.")
 
     text = " ".join(text.split())[: settings.TTS_MAX_CHARS]
+    if not text:
+        text = "Aucune information à lire."
+
     key = hashlib.sha256(f"{settings.GEMINI_TTS_MODEL}|{settings.TTS_VOICE}|{fmt}|{language}|{text}".encode()).hexdigest()
 
     cached = await db["audio_cache"].find_one({"_id": key})
@@ -79,11 +126,15 @@ async def synthesize(db, text: str, fmt: AudioFormat = "mp3", language: str = "f
             ),
         )
         pcm = response.candidates[0].content.parts[0].inline_data.data
-    except Exception:
-        logger.exception("Échec de la synthèse vocale")
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Le service de lecture audio est indisponible.")
+        audio = pcm_to_mp3(pcm) if fmt == "mp3" else pcm_to_wav(pcm)
+    except Exception as exc:
+        logger.warning("Échec de la synthèse vocale Gemini TTS (%s), bascule sur le moteur vocal de secours", exc)
+        try:
+            audio = await _fallback_tts(text, language=language)
+        except Exception:
+            logger.exception("Échec complet de la synthèse vocale")
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Le service de lecture audio est indisponible.")
 
-    audio = pcm_to_mp3(pcm) if fmt == "mp3" else pcm_to_wav(pcm)
     if len(audio) <= _MAX_CACHED_BYTES:
         await db["audio_cache"].update_one(
             {"_id": key},

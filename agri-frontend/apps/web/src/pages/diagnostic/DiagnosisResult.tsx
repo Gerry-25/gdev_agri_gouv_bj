@@ -89,7 +89,15 @@ export function DiagnosisResult({ diagnosis }: { diagnosis: Diagnosis }) {
           <tone.Icon className={`w-5 h-5 shrink-0 mt-0.5 ${tone.text}`} aria-hidden />
           <p className={`text-base font-semibold ${tone.text}`}>{diagnosis.simple_summary}</p>
         </div>
-        {diagnosis.alert_id && <div className="mt-3"><AudioButton path={{ kind: "diagnosis", id: diagnosis.alert_id }} label="Écouter les conseils" /></div>}
+        {diagnosis.alert_id && (
+          <div className="mt-3">
+            <AudioButton
+              path={{ kind: "diagnosis", id: diagnosis.alert_id }}
+              text={`${diagnosis.simple_summary}. ${diagnosis.treatment_steps?.join(". ") || ""}`}
+              label="Écouter les conseils"
+            />
+          </div>
+        )}
       </div>
 
       {!!diagnosis.treatment_steps?.length && (

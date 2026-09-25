@@ -4,12 +4,19 @@
  */
 export const speechAvailable = (): boolean => typeof window !== "undefined" && "speechSynthesis" in window;
 
-export function speak(text: string, lang = "fr-FR"): void {
-  if (!speechAvailable()) return;
+export function speak(text: string, lang = "fr-FR", onEnd?: () => void): void {
+  if (!speechAvailable()) {
+    onEnd?.();
+    return;
+  }
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = lang;
-  utterance.rate = 0.9;
+  utterance.rate = 0.95;
+  if (onEnd) {
+    utterance.onend = () => onEnd();
+    utterance.onerror = () => onEnd();
+  }
   window.speechSynthesis.speak(utterance);
 }
 

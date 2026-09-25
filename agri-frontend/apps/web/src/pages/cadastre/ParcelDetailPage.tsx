@@ -198,7 +198,10 @@ function SoilAndFertilization({ land, owner }: { land: Land; owner: boolean }) {
           <div className="p-3 rounded-lg bg-white border border-neutral-200">
             <div className="flex items-start justify-between gap-2">
               <p className="font-semibold">{latest.plan.simple_summary}</p>
-              <AudioButton path={{ kind: "fertilization", landId: land.id }} />
+              <AudioButton
+                path={{ kind: "fertilization", landId: land.id }}
+                text={`Plan de fumure pour la culture de ${land.crop_type}. ${latest.plan.simple_summary || ""}`}
+              />
             </div>
             <p className="text-sm text-neutral-600 mt-1">
               Rendement visé : <span className="tabular-nums">{formatNumber(latest.plan.expected_yield_kg_ha.low)} à {formatNumber(latest.plan.expected_yield_kg_ha.high)} kg/ha</span> ·

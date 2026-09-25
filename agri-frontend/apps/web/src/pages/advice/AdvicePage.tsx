@@ -74,7 +74,13 @@ function AnswerCard({ a }: { a: Answer }) {
         {!!a.sources.length && (
           <p className="text-xs text-neutral-600">Source{a.sources.length > 1 ? "s" : ""} : {a.sources.map((s) => `${s.title}${s.verified ? " (fiche validée)" : " (exemple non validé)"}`).join(" ; ")}</p>
         )}
-        {a.covered && <AudioButton path={{ kind: "assistant", id: a.id }} label="Écouter la réponse" />}
+        {a.covered && (
+          <AudioButton
+            path={{ kind: "assistant", id: a.id }}
+            text={`${a.simple_summary}. ${a.answer !== a.simple_summary ? a.answer : ""}`}
+            label="Écouter la réponse"
+          />
+        )}
       </div>
     </div>
   );
@@ -204,7 +210,11 @@ function GuideItem({ g, agent }: { g: Guide; agent: boolean }) {
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-3 text-sm border-t border-neutral-100 pt-3">
-          <AudioButton path={{ kind: "guide", slug: g.slug }} label="Écouter la fiche" />
+          <AudioButton
+            path={{ kind: "guide", slug: g.slug }}
+            text={`${g.title}. ${g.summary}. ${g.steps?.join(". ") || ""}`}
+            label="Écouter la fiche"
+          />
           {!!g.steps?.length && <ol className="space-y-1.5">{g.steps.map((s, i) => <li key={i} className="flex gap-3"><span className="w-6 h-6 rounded-full bg-emerald-800 text-white text-xs font-bold grid place-items-center shrink-0 tabular-nums">{i + 1}</span><span className="pt-0.5">{s}</span></li>)}</ol>}
           {g.content && <RichText text={g.content} />}
           <p className="text-xs text-neutral-500">Source : {g.source}{g.source_url ? <> · <a href={g.source_url} target="_blank" rel="noopener noreferrer" className="underline">voir le texte</a></> : null} · mise à jour le {formatDate(g.updated_at)}</p>
