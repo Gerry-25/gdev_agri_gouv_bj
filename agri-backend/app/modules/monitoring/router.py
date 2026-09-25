@@ -276,18 +276,53 @@ async def get_diagnosis_image(alert_id: str, db=Depends(get_database), user: Cur
     return Response(content=bytes(image["data"]), media_type=image["content_type"], headers={"Cache-Control": "private, max-age=2592000"})
 
 
+class LocalAudioSummary(BaseModel):
+    simple_summary: str = Field(..., description="1 à 2 phrases simples dans la langue demandée pour lecture audio")
+
+
 @router.get("/diagnoses/{alert_id}/audio", response_class=Response, responses=tts.AUDIO_RESPONSES,
             summary="Lecture audio du diagnostic et des étapes de traitement")
 async def get_diagnosis_audio(
     alert_id: str,
     format: tts.AudioFormat = "mp3",
+    language: Optional[Language] = Query(None, description="Langue de synthèse vocale"),
     db=Depends(get_database),
     user: CurrentUser = Depends(get_current_user),
 ):
     doc = await _get_diagnosis(db, alert_id, user)
-    steps = ". ".join(doc.get("treatment_steps") or [])
-    text = f"{doc['simple_summary']}. {'Voici quoi faire : ' + steps if steps else doc['treatment_advice']}"
-    return await tts.audio_response(db, text, format, "private, max-age=604800")
+    if not language:
+        profile = await db["users"].find_one({"npi": user.npi}, {"preferred_language": 1})
+        language = (profile or {}).get("preferred_language", doc.get("language", "fr"))
+
+    doc_lang = doc.get("language", "fr")
+    if language == doc_lang:
+        if language != "fr":
+            text = doc["simple_summary"]
+        else:
+            steps = ". ".join(doc.get("treatment_steps") or [])
+            text = f"{doc['simple_summary']}. {'Voici quoi faire : ' + steps if steps else doc['treatment_advice']}"
+    else:
+        if language in ("fon", "yo", "en"):
+            prompt = (
+                f"Traduis ce court diagnostic agricole en {LANGUAGES.get(language, language)} en 1 à 2 phrases très simples "
+                f"pour lecture vocale à un exploitant agricole :\n"
+                f"Culture : {doc.get('crop_identified', '')}\n"
+                f"Problème : {doc.get('disease_name') or doc.get('health_status', '')}\n"
+                f"Résumé : {doc.get('simple_summary', '')}\n"
+                f"Traitement : {doc.get('treatment_advice', '')}"
+            )
+            try:
+                res, _ = await ai_service.generate(
+                    db, purpose="diagnosis_audio_translation", schema=LocalAudioSummary, prompt=prompt, requested_by=user.npi, temperature=0.2
+                )
+                text = res.simple_summary
+            except Exception:
+                text = doc["simple_summary"]
+        else:
+            steps = ". ".join(doc.get("treatment_steps") or [])
+            text = f"{doc['simple_summary']}. {'Voici quoi faire : ' + steps if steps else doc['treatment_advice']}"
+
+    return await tts.audio_response(db, text, format, "private, max-age=604800", language=language)
 
 
 # --- Météo ----------------------------------------------------------------------

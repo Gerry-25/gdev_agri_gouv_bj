@@ -81,6 +81,7 @@ function AnswerCard({ a }: { a: Answer }) {
 }
 
 function Assistant() {
+  const { user } = useSession();
   const qc = useQueryClient();
   const [question, setQuestion] = useState("");
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -88,14 +89,16 @@ function Assistant() {
   const history = useQuery({ queryKey: ["assistant", "history"], queryFn: async () => unwrap(await api.GET("/api/v1/assistant/history", { params: { query: { limit: 5 } } })) as unknown as Answer[] });
   const ask = useMutation({
     mutationFn: async (input: { text?: string; audio?: Blob }) => {
+      const preferred = (user?.preferred_language as "fr" | "fon" | "yo" | "en") ?? "fr";
       if (input.audio) {
         const form = new FormData();
         form.append("file", input.audio, `question.${input.audio.type.includes("mp4") ? "m4a" : input.audio.type.includes("ogg") ? "ogg" : "webm"}`);
+        form.append("language", preferred);
         const { data, error } = await api.POST("/api/v1/assistant/ask-voice", { body: form as never });
         if (error) throw new Error(apiErrorMessage(error));
         return data as unknown as Answer;
       }
-      const { data, error } = await api.POST("/api/v1/assistant/ask", { body: { question: input.text! } });
+      const { data, error } = await api.POST("/api/v1/assistant/ask", { body: { question: input.text!, language: preferred } });
       if (error) throw new Error(apiErrorMessage(error));
       return data as unknown as Answer;
     },

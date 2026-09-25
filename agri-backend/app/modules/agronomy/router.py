@@ -11,6 +11,7 @@ from app.core.environment import soil as soil_env
 from app.core.security import CurrentUser, get_current_user
 from app.core.utils import serialize_doc, utcnow
 from app.modules.lands.service import ensure_owner, ensure_owner_or_agent, get_land_or_404
+from app.modules.monitoring.schemas import LANGUAGES
 
 router = APIRouter(tags=["Agronomie de la parcelle"])
 
@@ -114,9 +115,19 @@ async def list_fertilization_plans(land_id: str, db=Depends(get_database), user:
     return [serialize_doc(d) async for d in db["fertilization_plans"].find({"land_id": land_id}, {"npi_owner": 0}).sort("created_at", -1)]
 
 
+class FertAudioSummary(BaseModel):
+    summary: str = Field(..., description="Résumé simple du plan de fumure pour lecture audio aux paysans")
+
+
 @router.get("/lands/{land_id}/fertilization-plans/latest/audio", response_class=Response,
             responses=tts.AUDIO_RESPONSES, summary="Écouter le dernier plan de fumure")
-async def fertilization_audio(land_id: str, format: tts.AudioFormat = Query("mp3"), db=Depends(get_database), user: CurrentUser = Depends(get_current_user)):
+async def fertilization_audio(
+    land_id: str,
+    format: tts.AudioFormat = Query("mp3"),
+    language: Optional[str] = Query(None, description="Langue de synthèse vocale (fr, fon, yo, en)"),
+    db=Depends(get_database),
+    user: CurrentUser = Depends(get_current_user),
+):
     land = await get_land_or_404(db, land_id)
     ensure_owner_or_agent(land, user)
     doc = await db["fertilization_plans"].find_one({"land_id": land_id}, sort=[("created_at", -1)])
@@ -124,5 +135,27 @@ async def fertilization_audio(land_id: str, format: tts.AudioFormat = Query("mp3
         from app.modules.domains.service import not_found
         raise not_found("Plan de fumure")
     p = doc["plan"]
-    steps = ". ".join(f"{i['product']}, {i['dose']}, {i['timing']}" for i in p["organic_inputs"] + p["mineral_inputs"])
-    return await tts.audio_response(db, f"{p['simple_summary']}. {steps}", format, "private, max-age=604800")
+    if not language:
+        profile = await db["users"].find_one({"npi": user.npi}, {"preferred_language": 1})
+        language = (profile or {}).get("preferred_language", "fr")
+
+    if language in ("fon", "yo", "en"):
+        prompt = (
+            f"Tu es un agronome au Bénin. Traduis et adapte pour les exploitants agricoles ce plan de fumure en langue {LANGUAGES.get(language, language)}.\n"
+            f"Fais un résumé simple et encourageant de 2 phrases claires faciles à comprendre à l'écoute vocale :\n"
+            f"Culture : {doc.get('crop_type', '')}\n"
+            f"Résumé : {p.get('simple_summary', '')}\n"
+            f"Conseil : {p.get('rotation_advice', '')}"
+        )
+        try:
+            res, _ = await ai_service.generate(
+                db, purpose="fertilization_audio_translation", schema=FertAudioSummary, prompt=prompt, requested_by=user.npi, temperature=0.2
+            )
+            text = res.summary
+        except Exception:
+            text = p.get("simple_summary", "")
+    else:
+        steps = ". ".join(f"{i['product']}, {i['dose']}, {i['timing']}" for i in p.get("organic_inputs", []) + p.get("mineral_inputs", []))
+        text = f"{p['simple_summary']}. {steps}"
+
+    return await tts.audio_response(db, text, format, "private, max-age=604800", language=language)

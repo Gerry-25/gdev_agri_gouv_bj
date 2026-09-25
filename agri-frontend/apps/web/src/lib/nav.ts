@@ -1,5 +1,5 @@
 import {
-  BookOpen, Gauge, Landmark, type LucideIcon, Map, ScanLine, ShieldCheck, ShoppingBasket, Sprout, Warehouse,
+  BookOpen, Gauge, Landmark, type LucideIcon, Map, ScanLine, ShieldCheck, ShoppingBasket, Sparkles, Sprout, Warehouse,
 } from "lucide-react";
 
 export type Role = "farmer" | "buyer" | "state_agent" | "state_supervisor";
@@ -24,6 +24,7 @@ export const TABS: Tab[] = [
   { to: "/", label: "Cockpit État", short: "Accueil", icon: Gauge, roles: ["state_supervisor"] },
   { to: "/cadastre", label: "Cadastre", short: "Cadastre", icon: Map, roles: [...FIELD, ...AGENTS] },
   { to: "/diagnostic", label: "Diagnostic", short: "Diagnostic", icon: ScanLine, roles: [...FIELD, ...AGENTS] },
+  { to: "/chat", label: "Assistant IA", short: "Assistant", icon: Sparkles, roles: ALL },
   { to: "/stockage", label: "Stockage", short: "Stocks", icon: Warehouse, roles: FIELD },
   { to: "/marche", label: "Marché", short: "Marché", icon: ShoppingBasket, roles: ALL },
   { to: "/supervision", label: "Supervision", short: "Supervision", icon: ShieldCheck, roles: AGENTS },

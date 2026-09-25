@@ -7,6 +7,7 @@ import { tabsFor } from "../lib/nav";
 import { LanguageMenu, UserMenu } from "./menus";
 import { NotificationDrawer } from "./NotificationDrawer";
 import { SyncBadge } from "./SyncBadge";
+import { ChatbotWidget } from "./ChatbotWidget";
 
 /**
  * En-tête du template (marque, onglets, actions) :
@@ -63,7 +64,6 @@ export function AppShell() {
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6 pb-28 lg:pb-8">
-        {/* Réinitialisé à chaque changement d'écran */}
         <ErrorBoundary key={location.pathname}>
           <Outlet />
         </ErrorBoundary>
@@ -108,6 +108,7 @@ export function AppShell() {
       </footer>
 
       <NotificationDrawer open={notifOpen} onClose={() => setNotifOpen(false)} />
+      <ChatbotWidget />
     </div>
   );
 }

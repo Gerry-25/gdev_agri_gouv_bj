@@ -21,6 +21,7 @@ from app.modules.monitoring.router import router as monitoring_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.performance.router import router as performance_router
 from app.modules.state.router import router as state_router
+from app.modules.chatbot.router import router as chatbot_router
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s - %(message)s")
 logger = logging.getLogger("agri")
@@ -59,7 +60,7 @@ app.add_middleware(
 # Ordre important : les routes fixes (/domains/plans/..., /lands/disputes/...) avant les routes à paramètre
 for r in (auth_router, insights_router, agronomy_router, lands_router, monitoring_router, market_router, state_router,
           knowledge_router, notifications_router, performance_router, planning_router, domains_router, assistant_router,
-          storage_router):
+          storage_router, chatbot_router):
     app.include_router(r, prefix=settings.API_V1_STR)
 
 

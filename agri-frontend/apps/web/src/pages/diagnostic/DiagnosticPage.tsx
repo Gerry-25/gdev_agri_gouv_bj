@@ -60,6 +60,7 @@ function Scanner({ onResult }: { onResult: (d: Diagnosis) => void }) {
       // Date réelle de la photo : compte pour la veille sanitaire même si l'envoi est différé
       captured_at: new Date(Math.min(photo.takenAt, Date.now())).toISOString(),
       client_ref: newClientRef(),
+      language: user?.preferred_language ?? "fr",
     };
     const form = new FormData();
     Object.entries(fields).forEach(([k, v]) => v !== undefined && v !== "" && form.append(k, String(v)));

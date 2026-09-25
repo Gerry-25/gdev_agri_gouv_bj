@@ -16,8 +16,15 @@ router = APIRouter(prefix="/assistant", tags=["Assistant agricole"])
 Language = Literal["fr", "fon", "yo", "en"]
 AUDIO_TYPES = {"audio/webm", "audio/ogg", "audio/mpeg", "audio/mp4", "audio/wav", "audio/x-wav", "audio/x-m4a", "audio/aac"}
 MAX_AUDIO_BYTES = 3 * 1024 * 1024
-NOT_COVERED = ("Je n'ai pas encore de fiche validée sur cette question. Posez-la à votre conseiller agricole, "
-               "ou consultez les fiches pratiques disponibles.")
+NOT_COVERED_MAP = {
+    "fr": ("Je n'ai pas encore de fiche validée sur cette question. Posez-la à votre conseiller agricole, "
+           "ou consultez les fiches pratiques disponibles."),
+    "fon": ("Un kɔn nǔ mɛɖé mɛtɔn ɖe ɖo wema lɛ mɛ á. Kànbyɔ mɛ e nɔ na wěɖexámɛ lɛ́, alǒ kpɔ́n wema ɖěɖee ɖè lɛ́."),
+    "yo": ("Kò tíì sí ìwé tó fọwọ́sí lórí ìbéèrè yìí. Bèrè lọ́wọ́ olùbádámọ̀ràn oko rẹ, tàbí wo àwọn ìwé tó wà."),
+    "en": ("I do not have a validated guide on this question yet. Please ask your agricultural advisor, "
+           "or consult the available practical guides."),
+}
+NOT_COVERED = NOT_COVERED_MAP["fr"]
 
 
 class AskInput(BaseModel):
@@ -57,7 +64,8 @@ async def _answer(db, user: CurrentUser, question: str, language: str, land_id: 
             context_land = {"culture": land["crop_type"], "departement": land["department"], "commune": land["commune"]}
 
     if not sources:
-        out = AssistantAnswer(covered=False, answer=NOT_COVERED, simple_summary=NOT_COVERED, used_sources=[])
+        msg = NOT_COVERED_MAP.get(language, NOT_COVERED)
+        out = AssistantAnswer(covered=False, answer=msg, simple_summary=msg, used_sources=[])
         meta = {"ai_run_id": None, "status": "sans_ia"}
     else:
         fiches = [{"slug": g["slug"], "titre": g["title"], "resume": g["summary"], "etapes": g.get("steps"),

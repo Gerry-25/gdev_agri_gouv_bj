@@ -40,6 +40,7 @@ export const router = createBrowserRouter([
       { path: "cadastre/:id", lazy: cadastre("ParcelDetailPage") },
       { path: "cadastre/:id/contour", lazy: cadastre("NewParcelPage") },
       { path: "diagnostic", lazy: async () => ({ Component: (await import("./pages/diagnostic/DiagnosticPage")).DiagnosticPage }) },
+      { path: "chat", lazy: async () => ({ Component: (await import("./pages/ChatPage")).ChatPage }) },
       { path: "stockage", lazy: async () => ({ Component: (await import("./pages/storage/StoragePage")).StoragePage }) },
       { path: "marche", lazy: async () => ({ Component: (await import("./pages/market/MarketPage")).MarketPage }) },
       { path: "supervision", lazy: async () => ({ Component: (await import("./pages/supervision/SupervisionPage")).SupervisionPage }) },

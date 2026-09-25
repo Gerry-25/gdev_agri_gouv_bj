@@ -1,4 +1,4 @@
-import { api } from "@agri/core";
+import { api, useSession } from "@agri/core";
 import { Square, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { buttonClass } from "./ui";
@@ -9,19 +9,21 @@ type AudioPath =
   | { kind: "assistant"; id: string }
   | { kind: "guide"; slug: string };
 
-async function fetchAudio(p: AudioPath): Promise<Blob> {
+async function fetchAudio(p: AudioPath, language?: string): Promise<Blob> {
   const opts = { parseAs: "blob" as const };
+  const query = (language ? { language } : {}) as never;
   const res =
-    p.kind === "diagnosis" ? await api.GET("/api/v1/monitoring/diagnoses/{alert_id}/audio", { params: { path: { alert_id: p.id } }, ...opts })
-    : p.kind === "fertilization" ? await api.GET("/api/v1/lands/{land_id}/fertilization-plans/latest/audio", { params: { path: { land_id: p.landId } }, ...opts })
+    p.kind === "diagnosis" ? await api.GET("/api/v1/monitoring/diagnoses/{alert_id}/audio", { params: { path: { alert_id: p.id }, query }, ...opts })
+    : p.kind === "fertilization" ? await api.GET("/api/v1/lands/{land_id}/fertilization-plans/latest/audio", { params: { path: { land_id: p.landId }, query }, ...opts })
     : p.kind === "assistant" ? await api.GET("/api/v1/assistant/answers/{answer_id}/audio", { params: { path: { answer_id: p.id } }, ...opts })
-    : await api.GET("/api/v1/knowledge/guides/{slug}/audio", { params: { path: { slug: p.slug } }, ...opts });
+    : await api.GET("/api/v1/knowledge/guides/{slug}/audio", { params: { path: { slug: p.slug }, query }, ...opts });
   if (res.error || !res.data) throw new Error("Lecture audio indisponible.");
   return res.data as unknown as Blob;
 }
 
 /** Lecture audio (générée par le serveur, gardée en cache) : pour les exploitants qui lisent difficilement. */
 export function AudioButton({ path, label = "Écouter" }: { path: AudioPath; label?: string }) {
+  const { user } = useSession();
   const [state, setState] = useState<"idle" | "loading" | "playing" | "error">("idle");
   const audio = useRef<HTMLAudioElement | null>(null);
   useEffect(() => () => audio.current?.pause(), []);
@@ -33,7 +35,7 @@ export function AudioButton({ path, label = "Écouter" }: { path: AudioPath; lab
     }
     setState("loading");
     try {
-      const url = URL.createObjectURL(await fetchAudio(path));
+      const url = URL.createObjectURL(await fetchAudio(path, user?.preferred_language));
       audio.current = new Audio(url);
       audio.current.onended = () => setState("idle");
       await audio.current.play();

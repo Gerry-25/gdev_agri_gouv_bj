@@ -4,11 +4,14 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pymongo.errors import DuplicateKeyError
 
-from app.core import tts
+from pydantic import BaseModel, Field
+
+from app.core import ai_service, tts
 from app.core.database import get_database
 from app.core.security import CurrentUser, get_current_user, require_roles
 from app.core.utils import utcnow
 from app.modules.knowledge.schemas import CATEGORY_INFO, GuideBase, GuideCategory, GuideCreate, GuideOut
+from app.modules.monitoring.schemas import LANGUAGES
 
 router = APIRouter(prefix="/knowledge", tags=["Information & Réglementation"])
 
@@ -62,16 +65,42 @@ async def get_guide(slug: str, db=Depends(get_database)):
     return _out(await _get_or_404(db, slug))
 
 
+class GuideAudioSummary(BaseModel):
+    summary: str = Field(..., description="Résumé clair et simple en 2 à 3 phrases dans la langue cible pour lecture vocale aux paysans")
+
+
 @router.get("/guides/{slug}/audio", response_class=Response, responses=tts.AUDIO_RESPONSES, summary="Lecture audio de la fiche")
 async def get_guide_audio(
     slug: str,
     format: tts.AudioFormat = "mp3",
+    language: Optional[str] = Query(None, description="Langue de synthèse vocale (fr, fon, yo, en)"),
     db=Depends(get_database),
-    _: CurrentUser = Depends(get_current_user),
+    user: CurrentUser = Depends(get_current_user),
 ):
     doc = await _get_or_404(db, slug)
-    text = f"{doc['title']}. {doc['summary']} " + " ".join(doc.get("steps") or [])
-    return await tts.audio_response(db, text, format, "public, max-age=604800")
+    if not language:
+        profile = await db["users"].find_one({"npi": user.npi}, {"preferred_language": 1})
+        language = (profile or {}).get("preferred_language", "fr")
+
+    if language in ("fon", "yo", "en"):
+        prompt = (
+            f"Tu es un agronome au Bénin. Traduis et adapte pour les exploitants agricoles cette fiche pratique en langue {LANGUAGES.get(language, language)}.\n"
+            f"Fais un résumé simple, bienveillant, de 2 à 3 phrases claires faciles à comprendre à l'écoute vocale :\n"
+            f"Titre : {doc['title']}\n"
+            f"Résumé : {doc['summary']}\n"
+            f"Étapes : {' '.join(doc.get('steps') or [])}"
+        )
+        try:
+            res, _ = await ai_service.generate(
+                db, purpose="guide_audio_translation", schema=GuideAudioSummary, prompt=prompt, requested_by=user.npi, temperature=0.2
+            )
+            text = res.summary
+        except Exception:
+            text = f"{doc['title']}. {doc['summary']}"
+    else:
+        text = f"{doc['title']}. {doc['summary']} " + " ".join(doc.get("steps") or [])
+
+    return await tts.audio_response(db, text, format, "public, max-age=604800", language=language)
 
 
 @router.post("/guides", status_code=status.HTTP_201_CREATED, response_model=GuideOut)

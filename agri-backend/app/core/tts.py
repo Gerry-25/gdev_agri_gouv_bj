@@ -46,21 +46,29 @@ def pcm_to_mp3(pcm: bytes) -> bytes:
     return bytes(enc.encode(pcm) + enc.flush())
 
 
-async def synthesize(db, text: str, fmt: AudioFormat = "mp3") -> bytes:
+async def synthesize(db, text: str, fmt: AudioFormat = "mp3", language: str = "fr") -> bytes:
     if ai.ai_client is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Lecture audio indisponible : clé Gemini non configurée.")
 
     text = " ".join(text.split())[: settings.TTS_MAX_CHARS]
-    key = hashlib.sha256(f"{settings.GEMINI_TTS_MODEL}|{settings.TTS_VOICE}|{fmt}|{text}".encode()).hexdigest()
+    key = hashlib.sha256(f"{settings.GEMINI_TTS_MODEL}|{settings.TTS_VOICE}|{fmt}|{language}|{text}".encode()).hexdigest()
 
     cached = await db["audio_cache"].find_one({"_id": key})
     if cached:
         return bytes(cached["data"])
 
+    prompt_by_lang = {
+        "fon": f"Read and pronounce this text clearly, naturally and authentically in Fon (fɔngbè) language of Benin: {text}",
+        "yo": f"Read and pronounce this text clearly, naturally and authentically in Yoruba language: {text}",
+        "en": f"Read this text clearly, slowly and kindly: {text}",
+        "fr": f"Lis ce texte lentement, clairement et avec bienveillance : {text}",
+    }
+    instruction = prompt_by_lang.get(language, prompt_by_lang["fr"])
+
     try:
         response = await ai.ai_client.aio.models.generate_content(
             model=settings.GEMINI_TTS_MODEL,
-            contents=f"Lis ce texte lentement, clairement et avec bienveillance : {text}",
+            contents=instruction,
             config=types.GenerateContentConfig(
                 response_modalities=["AUDIO"],
                 speech_config=types.SpeechConfig(
@@ -77,12 +85,16 @@ async def synthesize(db, text: str, fmt: AudioFormat = "mp3") -> bytes:
 
     audio = pcm_to_mp3(pcm) if fmt == "mp3" else pcm_to_wav(pcm)
     if len(audio) <= _MAX_CACHED_BYTES:
-        await db["audio_cache"].update_one({"_id": key}, {"$set": {"data": audio, "format": fmt, "created_at": utcnow()}}, upsert=True)
+        await db["audio_cache"].update_one(
+            {"_id": key},
+            {"$set": {"data": audio, "format": fmt, "language": language, "created_at": utcnow()}},
+            upsert=True,
+        )
     return audio
 
 
-async def audio_response(db, text: str, fmt: AudioFormat, cache_control: str) -> Response:
-    data = await synthesize(db, text, fmt)
+async def audio_response(db, text: str, fmt: AudioFormat, cache_control: str, language: str = "fr") -> Response:
+    data = await synthesize(db, text, fmt, language=language)
     return Response(content=data, media_type=MEDIA_TYPES[fmt], headers={"Cache-Control": cache_control})
 
 
