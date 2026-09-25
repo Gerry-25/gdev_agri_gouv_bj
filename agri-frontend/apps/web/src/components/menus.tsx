@@ -40,7 +40,7 @@ export function LanguageMenu() {
   const current = user?.preferred_language ?? "fr";
   return (
     <div className="relative" ref={ref}>
-      <button
+      <button type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-label="Langue des conseils"
@@ -53,7 +53,7 @@ export function LanguageMenu() {
         <Panel width="w-60">
           <p className="px-3 py-2 text-xs text-neutral-500 border-b border-neutral-100">Langue des conseils de l'IA et de l'audio. Les écrans restent en français.</p>
           {LANGUAGES.map((l) => (
-            <button
+            <button type="button"
               key={l.code}
               onClick={() => save.mutate(l.code)}
               disabled={save.isPending}
@@ -78,7 +78,7 @@ export function UserMenu() {
   const role = ROLE_LABELS[user.role as Role] ?? user.role;
   return (
     <div className="relative" ref={ref}>
-      <button
+      <button type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         className="min-h-9 px-2.5 text-neutral-800 bg-neutral-100 hover:bg-neutral-200 rounded border border-neutral-200 cursor-pointer flex items-center gap-2"
@@ -99,10 +99,10 @@ export function UserMenu() {
             </div>
             <div className="text-xs text-neutral-500 tabular-nums">NPI {user.npi}</div>
           </div>
-          <button onClick={() => signOut.mutate(false)} className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer">
+          <button type="button" onClick={() => signOut.mutate(false)} className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer">
             <LogOut className="w-4 h-4" aria-hidden /> Se déconnecter
           </button>
-          <button onClick={() => signOut.mutate(true)} className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center gap-2 cursor-pointer">
+          <button type="button" onClick={() => signOut.mutate(true)} className="w-full text-left px-3 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center gap-2 cursor-pointer">
             <Smartphone className="w-4 h-4" aria-hidden /> Déconnecter tous mes appareils
           </button>
         </Panel>

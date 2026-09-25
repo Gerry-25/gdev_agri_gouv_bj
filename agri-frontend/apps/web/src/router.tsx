@@ -1,4 +1,5 @@
 import { useSession } from "@agri/core";
+import type React from "react";
 import { createBrowserRouter, redirect } from "react-router-dom";
 import { AppShell } from "./components/AppShell";
 import { RequireAuth } from "./components/Guards";
@@ -7,6 +8,12 @@ import { AgentHome } from "./pages/AgentHome";
 import { FarmerDashboard } from "./pages/FarmerDashboard";
 import { LoginPage } from "./pages/LoginPage";
 import { MorePage, OutboxPage, Planned } from "./pages/misc";
+
+// Écrans avec carte chargés à la demande : MapLibre n'alourdit pas l'accueil (réseau 3G)
+const cadastre = (name: "CadastrePage" | "NewParcelPage" | "ParcelDetailPage") => async () => {
+  const mod = await (name === "CadastrePage" ? import("./pages/cadastre/CadastrePage") : name === "NewParcelPage" ? import("./pages/cadastre/NewParcelPage") : import("./pages/cadastre/ParcelDetailPage"));
+  return { Component: (mod as Record<string, React.ComponentType>)[name] };
+};
 
 function Home() {
   const { user } = useSession();
@@ -27,7 +34,10 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Home /> },
-      { path: "cadastre/*", element: <Planned title="Cadastre et fiche parcelle" step={2} /> },
+      { path: "cadastre", lazy: cadastre("CadastrePage") },
+      { path: "cadastre/nouvelle", lazy: cadastre("NewParcelPage") },
+      { path: "cadastre/:id", lazy: cadastre("ParcelDetailPage") },
+      { path: "cadastre/:id/contour", lazy: cadastre("NewParcelPage") },
       { path: "diagnostic", element: <Planned title="Diagnostic phytosanitaire" step={3} /> },
       { path: "stockage", element: <Planned title="Conseiller de stockage" step={3} /> },
       { path: "marche", element: <Planned title="Marché agricole" step={4} /> },

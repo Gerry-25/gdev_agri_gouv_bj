@@ -6,6 +6,9 @@ COPY packages/core/package.json packages/core/
 COPY apps/web/package.json apps/web/
 RUN npm ci --no-audit --no-fund
 COPY . .
+# Clé Esri pour la vue satellite (facultative) : docker compose build --build-arg VITE_ESRI_TOKEN=...
+ARG VITE_ESRI_TOKEN=""
+ENV VITE_ESRI_TOKEN=$VITE_ESRI_TOKEN
 RUN npm run build
 
 # --- Service statique + relais vers l'API

@@ -3,3 +3,6 @@ dist/
 dev-dist/
 *.local
 .env
+
+# Fond de carte généré (plusieurs dizaines de Mo) : voir scripts/build-benin-tiles.sh
+apps/web/public/tiles/*.pmtiles

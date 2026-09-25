@@ -1,7 +1,7 @@
 # AgriSmart Bénin : fonctionnalités de la plateforme
 
 > Document de référence tenu à jour à chaque ajout ou modification.
-> **Backend : 4.0.1 · Frontend : 0.2.0 (intégration du template : étape 1 sur 5)**, dernière mise à jour : 24/09/2026.
+> **Backend : 4.0.1 · Frontend : 0.3.0 (intégration du template : étape 2 sur 5)**, dernière mise à jour : 24/09/2026.
 > Détails techniques : `README.md` de chaque dossier (`agri-backend`, `agri-frontend`).
 
 ## Sommaire
@@ -173,7 +173,7 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 | Étape | Contenu | Statut |
 |---|---|---|
 | 1. Structure et accueil | En-tête, navigation par rôle, connexion, notifications, langue, « Mon exploitation », accueil agent et superviseur | **Livrée** |
-| 2. Cadastre | Carte, relevé GPS, fiche parcelle, plan de fumure | À faire |
+| 2. Cadastre | Carte, relevé GPS, fiche parcelle, plan de fumure | **Livrée** |
 | 3. Diagnostic et stockage | Scanner photo, questions de suivi, météo, conseiller de stockage | À faire |
 | 4. Marché et supervision | Catalogue, annonces avec aide IA, portail acheteur, supervision, litiges, note hebdomadaire | À faire |
 | 5. Terres de l'État et conseils | Préparation des terres, plan IA, appels, candidatures, concessions, fiches et assistant vocal | À faire |
@@ -197,6 +197,15 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
   - météo de la parcelle ;
   - alertes « terres de l'État ouvertes » et « stock à risque ».
 - **Accueil agent et superviseur** : indicateurs nationaux et priorités d'inspection.
+- **Cadastre** :
+  - **cartes** : fond vectoriel du Bénin hébergé par nous, vue satellite Esri quand une clé est configurée et que le réseau est disponible, carte gardée dans le téléphone pour le terrain ;
+  - **relevé GPS en marchant** : écran maintenu allumé, points imprécis refusés, point automatique tous les 10 m, brouillon sauvegardé ; ou **tracé sur la carte** ;
+  - **contrôles pendant le relevé** : surface estimée en direct, alerte si les côtés se croisent ou si un point sort du Bénin ;
+  - **envoi hors ligne** : sans réseau, la parcelle part dans la file d'attente, sans doublon ;
+  - **fiche parcelle** : surface calculée par le serveur, contour, récoltes, lecture du sol, plan de fumure par l'IA avec écoute audio, litiges, météo ;
+  - **actions du propriétaire** : refaire le contour, modifier, transférer, supprimer ;
+  - **vérification de terrain** par un agent ;
+  - **carte nationale des agents** : chargement de la zone visible uniquement, filtres (à vérifier, en litige, vérifiées), points aux petites échelles et contours en zoomant.
 - **Retraits** : le sélecteur de rôle, le téléchargement du code source et les libellés inexacts (« Vérifiée ANDF », classement fictif).
 
 ## 11. Points en attente
@@ -211,6 +220,9 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 | Intégrer le template (étapes 2 à 5) | Équipe frontend | En cours |
 | Traduire les écrans en fon et yoruba | Locuteurs natifs | À faire |
 | Tester l'image Docker du frontend (nginx) | Équipe technique | À faire |
+| Générer le fond de carte du Bénin (`scripts/build-benin-tiles.sh`) | Équipe technique | À faire |
+| Créer la clé Esri gratuite et surveiller le volume de tuiles (moins d'un million par mois) | Équipe technique | À faire |
+| Demander à l'ANDF si des orthophotos cadastrales peuvent être fournies | Porteur du projet | À explorer |
 | Créer le compte gratuit iSDAsoil et renseigner les identifiants | Équipe technique | À faire |
 | Tester l'IA avec une vraie clé Gemini et les services externes réels | Équipe technique | À faire |
 | Nouer un partenariat de relecture des plans et des fiches (INRAB, ATDA) | Porteur du projet | À faire |
@@ -223,6 +235,7 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 
 | Version | Date | Modifications |
 |---|---|---|
+| Front 0.3.0 | 25/09/2026 | Intégration du template, étape 2 : Cadastre (cartes MapLibre, fond vectoriel hébergé et hors ligne, vue satellite Esri, relevé GPS ou tracé sur carte, fiche parcelle avec récoltes, sol et plan de fumure, carte nationale des agents). |
 | Front 0.2.0 / 4.0.1 | 25/09/2026 | Intégration du template, étape 1 : application unique (structure, connexion, notifications, « Mon exploitation », accueil agent et superviseur), remplace les deux applications précédentes. Backend : rééquilibrage des priorités d'inspection (les anciennes déclarations ne masquent plus les foyers sanitaires). |
 | 4.0.0 | 25/09/2026 | Assistance IA : plan de mise en valeur des terres de l'État (profil environnemental automatique, relevé de terrain, orientations, photos, relecture experte, appel prérempli, analyse des candidatures), plan de fumure, assistant texte et voix adossé aux fiches validées, questions de suivi sur un diagnostic, conseiller de stockage, aide à la vente, synthèse de litige, priorités d'inspection, note hebdomadaire, analyse des concessions. Service d'IA centralisé : journal, cache, quotas, anonymisation. |
 | Front 0.1.0 | 24/09/2026 | Frontend, étape 1 : socle des deux applications (connexion, session, hors ligne, notifications, profil, vue d'ensemble agents). Backend : export du contrat OpenAPI, service `web` dans Docker Compose. |

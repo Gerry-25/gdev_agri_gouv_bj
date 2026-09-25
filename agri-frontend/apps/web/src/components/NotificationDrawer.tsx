@@ -38,14 +38,14 @@ export function NotificationDrawer({ open, onClose }: { open: boolean; onClose: 
           <h2 id="notif-title" className="text-base font-bold text-neutral-900 flex items-center gap-2">
             <Bell className="w-5 h-5 text-emerald-800" aria-hidden /> Notifications
           </h2>
-          <button onClick={onClose} className="p-2 text-neutral-500 hover:text-neutral-800 rounded cursor-pointer" aria-label="Fermer">
+          <button type="button" onClick={onClose} className="p-2 text-neutral-500 hover:text-neutral-800 rounded cursor-pointer" aria-label="Fermer">
             <X className="w-5 h-5" />
           </button>
         </div>
         {unread > 0 && (
           <div className="px-5 py-2 bg-neutral-50 border-b border-neutral-100 flex items-center justify-between text-sm text-neutral-600">
             <span>{unread} non lue{unread > 1 ? "s" : ""}</span>
-            <button onClick={() => markAll.mutate()} className="text-emerald-800 font-semibold hover:underline cursor-pointer">
+            <button type="button" onClick={() => markAll.mutate()} className="text-emerald-800 font-semibold hover:underline cursor-pointer">
               Tout marquer comme lu
             </button>
           </div>
@@ -53,7 +53,7 @@ export function NotificationDrawer({ open, onClose }: { open: boolean; onClose: 
         <div className="flex-1 overflow-y-auto divide-y divide-neutral-100">
           {list.isLoading && <Loading />}
           {items.map((n) => (
-            <button
+            <button type="button"
               key={n.id}
               onClick={() => !n.read && markOne.mutate(n.id)}
               className={`w-full text-left p-4 space-y-1 cursor-pointer ${n.read ? "bg-white hover:bg-neutral-50" : "bg-emerald-50/40 hover:bg-emerald-50"}`}

@@ -17,7 +17,11 @@ services:
   # Frontend : application terrain (/) et espace agents (/agents/), avec relais vers l'API.
   # Le dossier agri-frontend doit se trouver à côté de agri-backend.
   web:
-    build: ../agri-frontend
+    build:
+      context: ../agri-frontend
+      args:
+        # Clé Esri facultative (vue satellite), à définir dans .env
+        VITE_ESRI_TOKEN: ${VITE_ESRI_TOKEN:-}
     container_name: agri_web
     restart: unless-stopped
     ports:

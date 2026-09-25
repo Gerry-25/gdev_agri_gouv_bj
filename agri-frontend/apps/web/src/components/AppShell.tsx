@@ -43,7 +43,7 @@ export function AppShell() {
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <SyncBadge />
             <LanguageMenu />
-            <button
+            <button type="button"
               onClick={() => setNotifOpen(true)}
               aria-label={`Notifications (${unread} non lues)`}
               className="relative min-h-9 px-2 text-neutral-700 hover:bg-neutral-100 rounded border border-neutral-200 cursor-pointer"

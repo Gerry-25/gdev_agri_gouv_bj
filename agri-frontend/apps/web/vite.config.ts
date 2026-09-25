@@ -30,7 +30,9 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//, /^\/health/],
+        navigateFallbackDenylist: [/^\/api\//, /^\/health/, /^\/tiles\//],
+        // Les polices de carte sont mises en cache à l'usage (1,6 Mo : pas dans le préchargement)
+        globIgnores: ["map-assets/**"],
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
         runtimeCaching: [
           {
@@ -41,6 +43,19 @@ export default defineConfig({
             handler: "NetworkFirst",
             method: "GET",
             options: { cacheName: "api-lectures", networkTimeoutSeconds: 6, expiration: { maxEntries: 300, maxAgeSeconds: 7 * 24 * 3600 } },
+          },
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith("/map-assets/"),
+            handler: "CacheFirst",
+            method: "GET",
+            options: { cacheName: "carte-polices", expiration: { maxEntries: 60, maxAgeSeconds: 365 * 24 * 3600 } },
+          },
+          {
+            // Tuiles satellite Esri : cache du navigateur de l'utilisateur uniquement (autorisé), pas d'export
+            urlPattern: ({ url }) => url.hostname === "ibasemaps-api.arcgis.com",
+            handler: "CacheFirst",
+            method: "GET",
+            options: { cacheName: "satellite", expiration: { maxEntries: 400, maxAgeSeconds: 7 * 24 * 3600 } },
           },
           {
             urlPattern: ({ url }) => url.pathname.endsWith("/audio"),

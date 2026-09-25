@@ -105,7 +105,7 @@ function OfferCard({ offer }: { offer: Offer }) {
       </div>
       {interested > 0 && offer.status === "active" && (
         <div className="p-2.5 bg-blue-50 border border-blue-200 rounded text-sm text-blue-950 space-y-2">
-          <button onClick={() => setOpen(!open)} aria-expanded={open} className="w-full flex items-center justify-between gap-2 font-semibold cursor-pointer">
+          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="w-full flex items-center justify-between gap-2 font-semibold cursor-pointer">
             <span>{interested} acheteur{interested > 1 ? "s" : ""} intéressé{interested > 1 ? "s" : ""}</span>
             <span className="text-blue-800 underline">{open ? "Masquer" : "Voir"}</span>
           </button>

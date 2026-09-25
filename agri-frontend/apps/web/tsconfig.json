@@ -1,5 +1,14 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "types": ["vite/client", "vite-plugin-pwa/client"] },
-  "include": ["src", "vite.config.ts"]
+  "compilerOptions": {
+    "types": [
+      "vite/client",
+      "vite-plugin-pwa/client",
+      "geojson"
+    ]
+  },
+  "include": [
+    "src",
+    "vite.config.ts"
+  ]
 }

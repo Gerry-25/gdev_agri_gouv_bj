@@ -5,10 +5,12 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router-dom";
 import { registerSW } from "virtual:pwa-register";
 import "./index.css";
+import { registerSenders } from "./lib/senders";
 import { router } from "./router";
 
 initI18n("fr");
 registerSW({ immediate: true });
+registerSenders();
 startOutboxSync();
 
 createRoot(document.getElementById("root")!).render(

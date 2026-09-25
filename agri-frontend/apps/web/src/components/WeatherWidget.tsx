@@ -34,7 +34,7 @@ export function WeatherWidget({ landId, commune }: { landId?: string; commune?: 
         icon={CloudSun}
         title={`Météo agricole${w?.commune ? ` · ${w.commune}` : ""}`}
         action={
-          <button onClick={() => q.refetch()} disabled={q.isFetching} aria-label="Actualiser la météo" className="p-2 text-neutral-500 hover:text-neutral-800 rounded cursor-pointer">
+          <button type="button" onClick={() => q.refetch()} disabled={q.isFetching} aria-label="Actualiser la météo" className="p-2 text-neutral-500 hover:text-neutral-800 rounded cursor-pointer">
             <RefreshCw className={`w-4 h-4 ${q.isFetching ? "animate-spin" : ""}`} aria-hidden />
           </button>
         }
