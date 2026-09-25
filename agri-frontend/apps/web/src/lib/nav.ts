@@ -1,5 +1,5 @@
 import {
-  BookOpen, Gauge, Landmark, type LucideIcon, Map, ScanLine, ShieldCheck, ShoppingBasket, Sparkles, Sprout, Warehouse,
+  BookOpen, Gauge, HeartPulse, Landmark, type LucideIcon, Map, ScanLine, ShieldCheck, ShoppingBasket, Sparkles, Sprout, Warehouse,
 } from "lucide-react";
 
 export type Role = "farmer" | "buyer" | "state_agent" | "state_supervisor";
@@ -29,6 +29,7 @@ export const TABS: Tab[] = [
   { to: "/marche", label: "Marché", short: "Marché", icon: ShoppingBasket, roles: ALL },
   { to: "/supervision", label: "Supervision", short: "Supervision", icon: ShieldCheck, roles: AGENTS },
   { to: "/concessions", label: "Terres de l'État", short: "Terres", icon: Landmark, roles: [...FIELD, ...AGENTS] },
+  { to: "/sante", label: "Santé exploitants", short: "Santé", icon: HeartPulse, roles: [...FIELD, ...AGENTS] },
   { to: "/reglementation", label: "Conseils", short: "Conseils", icon: BookOpen, roles: ALL },
 ];
 

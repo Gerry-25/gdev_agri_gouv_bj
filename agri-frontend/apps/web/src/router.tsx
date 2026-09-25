@@ -48,6 +48,7 @@ export const router = createBrowserRouter([
       { path: "concessions/terres/nouvelle", lazy: async () => ({ Component: (await import("./pages/lands/NewDomainPage")).NewDomainPage }) },
       { path: "concessions/terres/:id", lazy: async () => ({ Component: (await import("./pages/lands/DomainDetail")).DomainDetail }) },
       { path: "concessions/terres/:id/appel", lazy: async () => ({ Component: (await import("./pages/lands/NewCallPage")).NewCallPage }) },
+      { path: "sante", lazy: async () => ({ Component: (await import("./pages/health/HealthPage")).HealthPage }) },
       { path: "reglementation", lazy: async () => ({ Component: (await import("./pages/advice/AdvicePage")).AdvicePage }) },
       { path: "plus", element: <MorePage /> },
       { path: "envois", element: <OutboxPage /> },

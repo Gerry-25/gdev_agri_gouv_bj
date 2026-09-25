@@ -17,6 +17,9 @@ PICTOGRAMS = {
     "concession_inspection": "check",
     "concession_ended": "field",
     "storage_check": "warehouse",
+    "health_alert": "heart",
+    "health_assigned": "hospital",
+    "health_updated": "check",
 }
 
 

@@ -1,7 +1,7 @@
 import { api, formatNumber, useSession } from "@agri/core";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle, ArrowRight, Award, CheckCircle2, Clock, Landmark, MapPin, Plus, ShoppingBag, Sparkles, Sprout, Warehouse, XCircle,
+  AlertTriangle, ArrowRight, Award, CheckCircle2, Clock, HeartPulse, Landmark, MapPin, Plus, ShoppingBag, Sparkles, Sprout, Warehouse, XCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -148,28 +148,33 @@ export function FarmerDashboard() {
         </div>
       </Card>
 
-      {(openCalls.data?.length || riskyStocks > 0) ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {!!openCalls.data?.length && (
-            <Link to="/concessions" className="p-3.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-950 flex items-center gap-3 hover:border-purple-400">
-              <Landmark className="w-5 h-5 text-purple-700 shrink-0" aria-hidden />
-              <span className="text-sm flex-1">
-                <span className="font-bold">{openCalls.data.length} terre{openCalls.data.length > 1 ? "s" : ""} de l'État</span> ouverte{openCalls.data.length > 1 ? "s" : ""} aux candidatures
-              </span>
-              <ArrowRight className="w-4 h-4" aria-hidden />
-            </Link>
-          )}
-          {riskyStocks > 0 && (
-            <Link to="/stockage" className="p-3.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-950 flex items-center gap-3 hover:border-amber-500">
-              <Warehouse className="w-5 h-5 text-amber-700 shrink-0" aria-hidden />
-              <span className="text-sm flex-1">
-                <span className="font-bold">{riskyStocks} stock{riskyStocks > 1 ? "s" : ""} à risque</span> de pertes : voir les conseils
-              </span>
-              <ArrowRight className="w-4 h-4" aria-hidden />
-            </Link>
-          )}
-        </div>
-      ) : null}
+      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <Link to="/sante" className="p-3.5 rounded-lg border border-red-200 bg-red-50 text-red-950 flex items-center gap-3 hover:border-red-400 transition-colors">
+          <HeartPulse className="w-5 h-5 text-red-600 shrink-0" aria-hidden />
+          <span className="text-sm flex-1">
+            <span className="font-bold">Santé & Urgences</span> : premiers secours IA et assistance médicale
+          </span>
+          <ArrowRight className="w-4 h-4 text-red-600" aria-hidden />
+        </Link>
+        {!!openCalls.data?.length && (
+          <Link to="/concessions" className="p-3.5 rounded-lg border border-purple-200 bg-purple-50 text-purple-950 flex items-center gap-3 hover:border-purple-400">
+            <Landmark className="w-5 h-5 text-purple-700 shrink-0" aria-hidden />
+            <span className="text-sm flex-1">
+              <span className="font-bold">{openCalls.data.length} terre{openCalls.data.length > 1 ? "s" : ""} de l'État</span> ouverte{openCalls.data.length > 1 ? "s" : ""} aux candidatures
+            </span>
+            <ArrowRight className="w-4 h-4" aria-hidden />
+          </Link>
+        )}
+        {riskyStocks > 0 && (
+          <Link to="/stockage" className="p-3.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-950 flex items-center gap-3 hover:border-amber-500">
+            <Warehouse className="w-5 h-5 text-amber-700 shrink-0" aria-hidden />
+            <span className="text-sm flex-1">
+              <span className="font-bold">{riskyStocks} stock{riskyStocks > 1 ? "s" : ""} à risque</span> de pertes : voir les conseils
+            </span>
+            <ArrowRight className="w-4 h-4" aria-hidden />
+          </Link>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6">
         <Card className="lg:col-span-7">
