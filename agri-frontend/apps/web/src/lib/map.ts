@@ -54,27 +54,45 @@ export function buildStyle(base: BaseLayer, hasBasemap: boolean): StyleSpecifica
     sources: {},
     layers: [{ id: "fond", type: "background", paint: { "background-color": "#eef0ea" } }],
   };
-  if (hasBasemap) {
-    style.sources.protomaps = { type: "vector", url: pmtilesSourceUrl(), attribution: OSM_ATTRIBUTION };
-  }
-  if (base === "satellite" && ESRI_TOKEN) {
+
+  if (base === "satellite") {
+    const satelliteUrl = ESRI_TOKEN
+      ? `https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${ESRI_TOKEN}`
+      : "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
     style.sources.satellite = {
       type: "raster",
       tileSize: 256,
       maxzoom: 19,
       attribution: ESRI_ATTRIBUTION,
-      tiles: [`https://ibasemaps-api.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}?token=${ESRI_TOKEN}`],
+      tiles: [satelliteUrl],
     };
     style.layers.push({ id: "satellite", type: "raster", source: "satellite" });
-    // Noms des localités par-dessus l'image, si le fond vectoriel est disponible
     if (hasBasemap) {
+      style.sources.protomaps = { type: "vector", url: pmtilesSourceUrl(), attribution: OSM_ATTRIBUTION };
       style.layers.push(
         ...layers("protomaps", namedFlavor("light"), { lang: "fr" }).filter((l) => l.type === "symbol" && l.id.startsWith("places")),
       );
     }
-  } else if (hasBasemap) {
-    style.layers.push(...layers("protomaps", namedFlavor("light"), { lang: "fr" }));
+  } else {
+    // Mode Plan
+    if (hasBasemap) {
+      style.sources.protomaps = { type: "vector", url: pmtilesSourceUrl(), attribution: OSM_ATTRIBUTION };
+      style.layers.push(...layers("protomaps", namedFlavor("light"), { lang: "fr" }));
+    } else {
+      // Fallback OpenStreetMap en tuiles raster standard (accessible sans clé et gratuit)
+      style.sources.osm = {
+        type: "raster",
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors',
+        tiles: [
+          "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        ],
+      };
+      style.layers.push({ id: "osm-tiles", type: "raster", source: "osm" });
+    }
   }
+
   return style;
 }
 

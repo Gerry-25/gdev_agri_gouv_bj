@@ -127,3 +127,21 @@ async def delete_guide(slug: str, db=Depends(get_database), _: CurrentUser = Dep
     if not res.deleted_count:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Fiche introuvable.")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/guides/{slug}/verify", response_model=GuideOut, summary="Valider ou invalider une fiche pratique / réglementation")
+async def toggle_guide_verification(
+    slug: str,
+    db=Depends(get_database),
+    agent: CurrentUser = Depends(require_roles("state_agent", "state_supervisor")),
+):
+    doc = await _get_or_404(db, slug)
+    new_verified = not doc.get("verified", False)
+    await db["guides"].update_one(
+        {"slug": slug},
+        {"$set": {"verified": new_verified, "updated_at": utcnow(), "verified_by": agent.npi if new_verified else None}},
+    )
+    doc["verified"] = new_verified
+    doc["updated_at"] = utcnow()
+    doc["verified_by"] = agent.npi if new_verified else None
+    return _out(doc)

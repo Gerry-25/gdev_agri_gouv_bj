@@ -3,7 +3,7 @@ import maplibregl, { type GeoJSONSource, type LngLatBoundsLike } from "maplibre-
 import { Layers } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { BENIN_BOUNDS, type LngLat } from "../lib/geometry";
-import { type BaseLayer, buildStyle, ESRI_TOKEN, PARCEL_COLOR, prepareBasemap } from "../lib/map";
+import { type BaseLayer, buildStyle, PARCEL_COLOR, prepareBasemap } from "../lib/map";
 import { useOnline } from "../lib/useOnline";
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
@@ -168,7 +168,7 @@ export function MapView({ parcels, points, draft, position, fitBounds, onMapClic
     if (ready && fitBounds) mapRef.current?.fitBounds(fitBounds as LngLatBoundsLike, { padding: 40, maxZoom: 17, duration: 0 });
   }, [ready, fitKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const satelliteAvailable = !!ESRI_TOKEN && online;
+  const satelliteAvailable = online;
   return (
     <div className={`relative rounded-lg overflow-hidden border border-neutral-200 bg-[#eef0ea] ${className}`}>
       {/* w-full h-full : MapLibre impose position:relative au conteneur (un positionnement absolu serait écrasé) */}
@@ -179,14 +179,14 @@ export function MapView({ parcels, points, draft, position, fitBounds, onMapClic
           {(["plan", "satellite"] as const).map((b) => (
             <button type="button" key={b} onClick={() => setBase(b)} aria-pressed={base === b}
                     className={`px-3 min-h-9 cursor-pointer ${base === b ? "bg-emerald-800 text-white" : "text-neutral-700 hover:bg-neutral-50"}`}>
-              {b === "plan" ? "Plan" : "Satellite"}
+              {b === "plan" ? "Plan (OSM)" : "Satellite"}
             </button>
           ))}
         </div>
       )}
-      {hasBasemap === false && base === "plan" && (
+      {hasBasemap === false && !online && (
         <p className="absolute bottom-2 left-2 z-10 max-w-[70%] px-2 py-1 rounded bg-white/90 text-xs text-neutral-700 border border-neutral-200">
-          Fond de carte non installé sur ce serveur : seules les données de la plateforme sont affichées.
+          Mode hors-ligne : fond de carte non téléchargé. Seules les parcelles locales sont affichées.
         </p>
       )}
     </div>
