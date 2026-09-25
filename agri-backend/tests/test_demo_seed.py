@@ -6,6 +6,7 @@ from tests.conftest import V, login, run
 def test_demo_seed_and_reset(client, db):
     counts = run(seed_demo(db, farmers=60))
     assert counts["lands"] > 40 and counts["phytosanitary_alerts"] > 50 and counts["disputes"] == 6 and counts["farmer_health_alerts"] == 8
+    assert counts["financial_offers"] == 6 and counts["financial_applications"] >= 6
     lands = run(_all(db.lands))
     assert all(geo.in_benin(*l["centroid"]["coordinates"]) for l in lands)
     assert all(geo.from_geojson(l["boundary"]).is_valid for l in lands)
@@ -24,6 +25,14 @@ def test_demo_seed_and_reset(client, db):
     health_stats = client.get(f"{V}/farmer-health/stats", headers=agent).json()
     assert health_stats["total_alerts"] >= 8 and health_stats["vital_urgencies"] >= 2
 
+    # Financement & Crédit
+    fin_offers = client.get(f"{V}/finance/offers").json()
+    assert len(fin_offers) == 6
+    fin_me = client.get(f"{V}/finance/applications/me", headers=farmer).json()
+    assert len(fin_me) >= 3
+    fin_stats = client.get(f"{V}/finance/stats", headers=agent).json()
+    assert fin_stats["total_applications"] >= 6 and fin_stats["approved_applications"] >= 1
+
     # Domaine de l'État : un appel ouvert auquel le compte démo peut candidater
     perf = client.get(f"{V}/performance/me", headers=farmer).json()
     assert perf["eligible"], perf
@@ -40,6 +49,8 @@ def test_demo_seed_and_reset(client, db):
     assert run(db.lands.count_documents({})) == 0 and run(db.users.count_documents({"is_demo": True})) == 0
     assert run(db.state_domains.count_documents({})) == 0 and run(db.calls.count_documents({})) == 0
     assert run(db.farmer_health_alerts.count_documents({})) == 0
+    assert run(db.financial_offers.count_documents({})) == 0
+    assert run(db.financial_applications.count_documents({})) == 0
 
 
 async def _all(coll):

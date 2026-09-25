@@ -1,7 +1,7 @@
 import { api, formatNumber, useSession } from "@agri/core";
 import { useQuery } from "@tanstack/react-query";
 import {
-  AlertTriangle, ArrowRight, Award, CheckCircle2, Clock, HeartPulse, Landmark, MapPin, Plus, ShoppingBag, Sparkles, Sprout, Warehouse, XCircle,
+  AlertTriangle, ArrowRight, Award, CheckCircle2, Clock, Coins, HeartPulse, Landmark, MapPin, Plus, ShoppingBag, Sparkles, Sprout, Warehouse, XCircle,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -149,6 +149,13 @@ export function FarmerDashboard() {
       </Card>
 
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <Link to="/finances" className="p-3.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-950 flex items-center gap-3 hover:border-blue-400 transition-colors">
+          <Coins className="w-5 h-5 text-blue-700 shrink-0" aria-hidden />
+          <span className="text-sm flex-1">
+            <span className="font-bold">Financement & Crédit</span> : microcrédits, assurances et subventions
+          </span>
+          <ArrowRight className="w-4 h-4 text-blue-700" aria-hidden />
+        </Link>
         <Link to="/sante" className="p-3.5 rounded-lg border border-red-200 bg-red-50 text-red-950 flex items-center gap-3 hover:border-red-400 transition-colors">
           <HeartPulse className="w-5 h-5 text-red-600 shrink-0" aria-hidden />
           <span className="text-sm flex-1">

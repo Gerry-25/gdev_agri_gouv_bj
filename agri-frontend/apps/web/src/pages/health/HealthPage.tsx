@@ -642,10 +642,33 @@ function AgentHealthCockpit({
         return (
           <>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              <Card className="p-3.5 bg-neutral-50">
-                <Metric label="Total alertes" value={stats.total_alerts} hint="Dossiers enregistrés" />
+              <Card
+                onClick={() => {
+                  setStatusFilter("");
+                  setUrgencyFilter("");
+                  setDeptFilter("");
+                  setSearchQuery("");
+                }}
+                className={`p-3.5 cursor-pointer transition-all hover:shadow-sm ${
+                  !statusFilter && !urgencyFilter && !deptFilter && !searchQuery
+                    ? "bg-neutral-100 ring-2 ring-emerald-700 font-bold"
+                    : "bg-neutral-50 hover:bg-neutral-100/70"
+                }`}
+              >
+                <Metric label="Total alertes" value={stats.total_alerts} hint="Afficher tout l'existant" />
               </Card>
-              <Card className={`p-3.5 ${vitalCount > 0 ? "bg-red-50 border-red-300" : "bg-neutral-50"}`}>
+              <Card
+                onClick={() => {
+                  setUrgencyFilter(urgencyFilter === "vitale" ? "" : "vitale");
+                }}
+                className={`p-3.5 cursor-pointer transition-all hover:shadow-sm ${
+                  urgencyFilter === "vitale"
+                    ? "bg-red-100 ring-2 ring-red-600 border-red-400"
+                    : vitalCount > 0
+                    ? "bg-red-50/70 border-red-200 hover:bg-red-100/50"
+                    : "bg-neutral-50"
+                }`}
+              >
                 <Metric
                   label="Urgences vitales"
                   value={vitalCount}
@@ -653,7 +676,18 @@ function AgentHealthCockpit({
                   hintTone={vitalCount > 0 ? "amber" : "neutral"}
                 />
               </Card>
-              <Card className={`p-3.5 ${pendingCount > 0 ? "bg-amber-50 border-amber-300" : "bg-neutral-50"}`}>
+              <Card
+                onClick={() => {
+                  setStatusFilter(statusFilter === "signale" ? "" : "signale");
+                }}
+                className={`p-3.5 cursor-pointer transition-all hover:shadow-sm ${
+                  statusFilter === "signale"
+                    ? "bg-amber-100 ring-2 ring-amber-600 border-amber-400"
+                    : pendingCount > 0
+                    ? "bg-amber-50/70 border-amber-200 hover:bg-amber-100/50"
+                    : "bg-neutral-50"
+                }`}
+              >
                 <Metric
                   label="En attente"
                   value={pendingCount}
@@ -661,7 +695,16 @@ function AgentHealthCockpit({
                   hintTone={pendingCount > 0 ? "amber" : "neutral"}
                 />
               </Card>
-              <Card className="p-3.5 bg-blue-50/60 border-blue-200">
+              <Card
+                onClick={() => {
+                  setStatusFilter(statusFilter === "pris_en_charge" ? "" : "pris_en_charge");
+                }}
+                className={`p-3.5 cursor-pointer transition-all hover:shadow-sm ${
+                  statusFilter === "pris_en_charge"
+                    ? "bg-blue-100 ring-2 ring-blue-600 border-blue-400"
+                    : "bg-blue-50/60 border-blue-200 hover:bg-blue-100/50"
+                }`}
+              >
                 <Metric
                   label="Prises en charge"
                   value={inTreatmentCount}
@@ -669,7 +712,16 @@ function AgentHealthCockpit({
                   hintTone="blue"
                 />
               </Card>
-              <Card className="p-3.5 bg-emerald-50/60 border-emerald-200">
+              <Card
+                onClick={() => {
+                  setStatusFilter(statusFilter === "resolu" ? "" : "resolu");
+                }}
+                className={`p-3.5 cursor-pointer transition-all hover:shadow-sm ${
+                  statusFilter === "resolu"
+                    ? "bg-emerald-100 ring-2 ring-emerald-600 border-emerald-400"
+                    : "bg-emerald-50/60 border-emerald-200 hover:bg-emerald-100/50"
+                }`}
+              >
                 <Metric
                   label="Résolus"
                   value={resolvedCount}
@@ -706,6 +758,25 @@ function AgentHealthCockpit({
 
       {/* Filtres de recherche */}
       <Card className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
+            Filtres de recherche et de sélection
+          </span>
+          {(statusFilter || urgencyFilter || deptFilter || searchQuery) && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setStatusFilter("");
+                setUrgencyFilter("");
+                setDeptFilter("");
+                setSearchQuery("");
+              }}
+              className="text-xs text-neutral-600 hover:text-neutral-900 h-7 px-2"
+            >
+              Afficher tout l'existant (Effacer les filtres)
+            </Button>
+          )}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <div>
             <label className="block text-xs font-semibold text-neutral-600 mb-1">Recherche</label>
@@ -781,6 +852,20 @@ function AgentHealthCockpit({
         {!isLoading && filteredAlerts.length === 0 && (
           <Empty>
             <p className="font-semibold text-neutral-800">Aucune alerte trouvée avec les filtres sélectionnés.</p>
+            {(statusFilter || urgencyFilter || deptFilter || searchQuery) && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setStatusFilter("");
+                  setUrgencyFilter("");
+                  setDeptFilter("");
+                  setSearchQuery("");
+                }}
+                className="mt-3 text-xs"
+              >
+                Afficher tout l'existant
+              </Button>
+            )}
           </Empty>
         )}
 

@@ -20,6 +20,9 @@ PICTOGRAMS = {
     "health_alert": "heart",
     "health_assigned": "hospital",
     "health_updated": "check",
+    "finance_application": "bank",
+    "finance_decision": "check",
+    "finance_disbursed": "bank",
 }
 
 

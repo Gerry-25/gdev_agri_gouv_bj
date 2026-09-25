@@ -3,8 +3,8 @@ import type { LucideIcon } from "lucide-react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <section className={`bg-white border border-neutral-200 rounded-lg p-4 sm:p-5 ${className}`}>{children}</section>;
+export function Card({ children, className = "", onClick }: { children: ReactNode; className?: string; onClick?: () => void }) {
+  return <section onClick={onClick} className={`bg-white border border-neutral-200 rounded-lg p-4 sm:p-5 ${className}`}>{children}</section>;
 }
 
 export function CardHeader({ icon: Icon, title, action }: { icon?: LucideIcon; title: string; action?: ReactNode }) {

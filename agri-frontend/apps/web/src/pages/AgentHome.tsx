@@ -1,6 +1,6 @@
 import { api, formatFcfa, formatFcfaCompact, formatHectares, formatNumber, useSession } from "@agri/core";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Gauge, HeartPulse, ListChecks } from "lucide-react";
+import { ArrowRight, Coins, Gauge, HeartPulse, ListChecks } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Card, CardHeader, Loading } from "../components/ui";
 import { unwrap } from "../lib/queries";
@@ -65,6 +65,9 @@ export function AgentHome() {
         </ul>
       </Card>
       <div className="flex flex-wrap gap-4 items-center">
+        <Link to="/finances" className="inline-flex items-center gap-2 text-sm font-semibold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-2 rounded-lg">
+          <Coins className="w-4 h-4 text-blue-700" aria-hidden /> Guichet Financement & Crédit <ArrowRight className="w-4 h-4" aria-hidden />
+        </Link>
         <Link to="/sante" className="inline-flex items-center gap-2 text-sm font-semibold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-2 rounded-lg">
           <HeartPulse className="w-4 h-4 text-red-600" aria-hidden /> Urgences Santé Exploitants <ArrowRight className="w-4 h-4" aria-hidden />
         </Link>

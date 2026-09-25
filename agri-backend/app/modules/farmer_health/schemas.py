@@ -74,7 +74,7 @@ class HealthAlertOut(BaseModel):
     id: str
     npi: str
     patient_name: str
-    patient_relation: PatientRelation
+    patient_relation: str = "exploitant"
     phone: str
     department: str
     commune: str
@@ -82,14 +82,14 @@ class HealthAlertOut(BaseModel):
     land_id: Optional[str] = None
     symptoms: str
     suspected_cause: Optional[str] = None
-    work_related: bool
-    urgency_perceived: UrgencyLevel
-    urgency_level: UrgencyLevel
+    work_related: bool = True
+    urgency_perceived: str = "moderee"
+    urgency_level: str = "moderee"
     urgency_label: str
-    category: HealthCategory
+    category: str = "autre"
     category_label: str
     ai_recommendation: dict[str, Any]
-    status: AlertStatus
+    status: str = "signale"
     assigned_service: Optional[dict[str, Any]] = None
     resolution_notes: Optional[str] = None
     created_at: datetime

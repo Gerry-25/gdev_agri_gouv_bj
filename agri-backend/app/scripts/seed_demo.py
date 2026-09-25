@@ -94,7 +94,8 @@ DEMO_ACCOUNTS = [
 
 COLLECTIONS = ["users", "lands", "disputes", "transfers", "harvests", "market_offers", "offer_interests",
                "phytosanitary_alerts", "notifications", "state_domains", "calls", "applications", "contestations",
-               "concessions", "concession_reports", "concession_inspections", "stock_lots", "farmer_health_alerts"]
+               "concessions", "concession_reports", "concession_inspections", "stock_lots", "farmer_health_alerts",
+               "financial_offers", "financial_applications"]
 SEASONS = ["2025-A", "2025-B", "2026-A"]
 
 
@@ -693,6 +694,499 @@ async def _seed_farmer_health(db, rng, users, lands, now, agent_npi) -> int:
     return len(health_alerts)
 
 
+async def _seed_financial_services(db, rng, users, lands, now, agent_npi) -> tuple[int, int]:
+    """Données de démonstration pour le catalogue d'offres financières et les dossiers de candidature."""
+    demo_farmer = users[0]
+    demo_land = next(l for l in lands if l["npi_owner"] == demo_farmer["npi"])
+
+    offers = [
+        {
+            "title": "Microcrédit Campagne Intrants & Semences FNDA",
+            "type": "credit",
+            "category_label": "Campagne Agricole 2026",
+            "institution": "CLCAM / FNDA",
+            "description": "Facilité de trésorerie à taux bonifié pour l'acquisition de semences certifiées, engrais NPK/Urée et produits de traitement homologués.",
+            "amount_min": 150000,
+            "amount_max": 2000000,
+            "currency": "FCFA",
+            "interest_rate_pct": 3.5,
+            "duration_months": 12,
+            "grace_period_months": 3,
+            "premium_rate_pct": None,
+            "coverage_details": None,
+            "subsidy_pct": None,
+            "eligible_departments": [],
+            "eligible_crops": ["Maïs", "Coton", "Soja", "Riz", "Maraîchage"],
+            "min_performance_score": 40.0,
+            "requirements": ["Parcelle déclarée au cadastre", "Absence de litige foncier", "Engagement de commercialisation"],
+            "active": True,
+            "is_demo": True,
+            "created_at": now - timedelta(days=60),
+            "updated_at": now - timedelta(days=60),
+        },
+        {
+            "title": "Prêt Équipement & Mécanisation Agricole",
+            "type": "credit",
+            "category_label": "Investissement & Modernisation",
+            "institution": "Banque Agricole / BOA",
+            "description": "Financement à moyen terme pour l'acquisition de motoculteurs, motopompes solaires, batteuses et remorques agricoles.",
+            "amount_min": 1000000,
+            "amount_max": 15000000,
+            "currency": "FCFA",
+            "interest_rate_pct": 4.5,
+            "duration_months": 36,
+            "grace_period_months": 6,
+            "premium_rate_pct": None,
+            "coverage_details": None,
+            "subsidy_pct": None,
+            "eligible_departments": [],
+            "eligible_crops": [],
+            "min_performance_score": 50.0,
+            "requirements": ["Au moins 2 saisons vérifiées", "Devis pro-forma du fournisseur agréé", "Apport personnel de 15%"],
+            "active": True,
+            "is_demo": True,
+            "created_at": now - timedelta(days=50),
+            "updated_at": now - timedelta(days=50),
+        },
+        {
+            "title": "Assurance Sécheresse & Déficit Hydrique Indicielle",
+            "type": "assurance",
+            "category_label": "Protection Climat & Résilience",
+            "institution": "AMAB Assurances",
+            "description": "Couverture climatique paramétrique indexée sur les données satellites d'évapotranspiration et de pluviométrie. Indemnisation automatique en cas de rupture des pluies.",
+            "amount_min": 200000,
+            "amount_max": 5000000,
+            "currency": "FCFA",
+            "interest_rate_pct": None,
+            "duration_months": None,
+            "grace_period_months": None,
+            "premium_rate_pct": 4.0,
+            "coverage_details": "Franchise 10 %, déclenchement indiciel satellite météo certifié",
+            "subsidy_pct": None,
+            "eligible_departments": ["Ouémé", "Plateau", "Borgou", "Alibori", "Zou", "Collines"],
+            "eligible_crops": ["Maïs", "Coton", "Soja", "Riz"],
+            "min_performance_score": None,
+            "requirements": ["Géoréférencement précis de la parcelle", "Déclaration de date de semis"],
+            "active": True,
+            "is_demo": True,
+            "created_at": now - timedelta(days=45),
+            "updated_at": now - timedelta(days=45),
+        },
+        {
+            "title": "Assurance Multirisque Récolte Coton & Soja",
+            "type": "assurance",
+            "category_label": "Assurance Récolte Complète",
+            "institution": "CNAR Bénin",
+            "description": "Protection contre les ravageurs majeurs, inondations subites et grêle pour les filières stratégiques d'exportation.",
+            "amount_min": 300000,
+            "amount_max": 8000000,
+            "currency": "FCFA",
+            "interest_rate_pct": None,
+            "duration_months": None,
+            "grace_period_months": None,
+            "premium_rate_pct": 4.8,
+            "coverage_details": "Couverture jusqu'à 80% du rendement historique prouvé",
+            "subsidy_pct": None,
+            "eligible_departments": ["Borgou", "Alibori", "Atacora", "Donga"],
+            "eligible_crops": ["Coton", "Soja"],
+            "min_performance_score": 45.0,
+            "requirements": ["Parcelle vérifiée sans litige", "Respect du calendrier d'épandage"],
+            "active": True,
+            "is_demo": True,
+            "created_at": now - timedelta(days=40),
+            "updated_at": now - timedelta(days=40),
+        },
+        {
+            "title": "Subvention Aménagement de Bas-Fonds Rizicoles",
+            "type": "financement",
+            "category_label": "Souveraineté Alimentaire MAEP",
+            "institution": "Ministère de l'Agriculture (MAEP)",
+            "description": "Appui non remboursable pour les travaux de nivellement, diguettes anti-érosion et maîtrise de l'eau sur parcelles rizicoles.",
+            "amount_min": 500000,
+            "amount_max": 5000000,
+            "currency": "FCFA",
+            "interest_rate_pct": None,
+            "duration_months": None,
+            "grace_period_months": None,
+            "premium_rate_pct": None,
+            "coverage_details": None,
+            "subsidy_pct": 75.0,
+            "eligible_departments": ["Ouémé", "Couffo", "Mono", "Zou", "Atacora"],
+            "eligible_crops": ["Riz"],
+            "min_performance_score": 45.0,
+            "requirements": ["Titre ou convention d'exploitation valide", "Engagement de double culture annuelle"],
+            "active": True,
+            "is_demo": True,
+            "created_at": now - timedelta(days=30),
+            "updated_at": now - timedelta(days=30),
+        },
+        {
+            "title": "Prime d'Installation Jeune Exploitant Maraîcher",
+            "type": "financement",
+            "category_label": "Promotion de la Jeunesse Agricole",
+            "institution": "Fonds National de Développement Agricole (FNDA)",
+            "description": "Dotation forfaitaire d'aide au démarrage pour les jeunes diplômés ou exploitants de moins de 35 ans s'installant en maraîchage agro-écologique.",
+            "amount_min": 1000000,
+            "amount_max": 3500000,
+            "currency": "FCFA",
+            "interest_rate_pct": None,
+            "duration_months": None,
+            "grace_period_months": None,
+            "premium_rate_pct": None,
+            "coverage_details": None,
+            "subsidy_pct": 80.0,
+            "eligible_departments": [],
+            "eligible_crops": ["Maraîchage", "Tomate", "Piment", "Carotte", "Pastèque"],
+            "min_performance_score": None,
+            "requirements": ["Âge entre 18 et 35 ans", "Projet validé par un centre de formation ou ATDA"],
+            "active": True,
+            "is_demo": True,
+            "created_at": now - timedelta(days=25),
+            "updated_at": now - timedelta(days=25),
+        }
+    ]
+
+    res_offers = await db["financial_offers"].insert_many(offers)
+    offer_ids = [str(oid) for oid in res_offers.inserted_ids]
+
+    farmer_1 = demo_farmer
+    farmer_2 = users[4] if len(users) > 4 else demo_farmer
+    farmer_3 = users[5] if len(users) > 5 else demo_farmer
+    farmer_4 = users[6] if len(users) > 6 else demo_farmer
+
+    applications = [
+        # 1. Démo Exploitant - Crédit intrants approuvé
+        {
+            "offer_id": offer_ids[0],
+            "offer_title": offers[0]["title"],
+            "offer_type": offers[0]["type"],
+            "offer_institution": offers[0]["institution"],
+            "farmer_npi": farmer_1["npi"],
+            "farmer_name": farmer_1["full_name"],
+            "farmer_phone": farmer_1["phone"],
+            "department": demo_land["department"],
+            "commune": demo_land["commune"],
+            "land_id": str(demo_land["_id"]),
+            "land_title": demo_land.get("title", f"Parcelle {demo_land.get('crop_type', 'Maïs')} ({demo_land.get('commune', 'Dangbo')})"),
+            "crop_type": "Maïs",
+            "surface_ha": demo_land["surface_hectares"],
+            "amount_requested": 800000,
+            "amount_approved": 800000,
+            "project_description": "Acquisition de semences hybrides certifiées et de 12 sacs d'engrais NPK/Urée pour la campagne principale.",
+            "declared_harvest_estimate_kg": 5000,
+            "guarantees_or_notes": "Nantissement sur récolte stockée dans le grenier communautaire de Dangbo.",
+            "status": "approuve",
+            "ai_evaluation": {
+                "score": 82.5,
+                "verdict": "favorable",
+                "verdict_label": "Avis Favorable - Dossier Solvable",
+                "strengths": [
+                    "Parcelle vérifiée par les services cadastraux avec délimitation certifiée.",
+                    "Score de performance agricole élevé (72/100) attestant d'une bonne maîtrise technique.",
+                    "Ratio d'endettement faible : le prêt ne représente que 32 % de la récolte attendue."
+                ],
+                "risks": [
+                    "Risque de pluviométrie tardive en début de saison nécessitant un semis étalé."
+                ],
+                "recommended_conditions": [
+                    "Fourniture des factures d'achat auprès du distributeur d'engrais agréé.",
+                    "Libération des fonds en deux tranches (50% labour, 50% sarclage/engrais)."
+                ],
+                "recommended_amount": 800000,
+                "summary": "Dossier très sain présentant une assise technique et foncière irréprochable. Remboursement sécurisé par les rendements passés.",
+                "farmer_advice": "Veillez à épandre l'urée en deux fractions pour maximiser l'efficience azotée de votre maïs.",
+                "type_specific_metrics": {"debt_to_revenue_ratio": 0.32, "solvency_coverage_ratio": 3.12}
+            },
+            "agent_decision": {
+                "status": "approuve",
+                "decided_by_npi": agent_npi,
+                "decided_by_name": "Démo Agent État",
+                "amount_approved": 800000,
+                "interest_rate_approved": 3.5,
+                "duration_approved_months": 12,
+                "conditions": [
+                    "Déblocage 50% au labour, 50% au sarclage",
+                    "Contrôle de conformité des semences certifiées"
+                ],
+                "motivation_or_notes": "Dossier exemplaire. Exploitant rigoureux et parcelle cadastrée sans litige.",
+                "decided_at": now - timedelta(days=5),
+            },
+            "disbursement": None,
+            "is_demo": True,
+            "created_at": now - timedelta(days=12),
+            "updated_at": now - timedelta(days=5),
+        },
+        # 2. Démo Exploitant - Assurance indicielle active
+        {
+            "offer_id": offer_ids[2],
+            "offer_title": offers[2]["title"],
+            "offer_type": offers[2]["type"],
+            "offer_institution": offers[2]["institution"],
+            "farmer_npi": farmer_1["npi"],
+            "farmer_name": farmer_1["full_name"],
+            "farmer_phone": farmer_1["phone"],
+            "department": demo_land["department"],
+            "commune": demo_land["commune"],
+            "land_id": str(demo_land["_id"]),
+            "land_title": demo_land.get("title", f"Parcelle {demo_land.get('crop_type', 'Maïs')} ({demo_land.get('commune', 'Dangbo')})"),
+            "crop_type": "Maïs",
+            "surface_ha": demo_land["surface_hectares"],
+            "amount_requested": 1200000,
+            "amount_approved": 1200000,
+            "project_description": "Souscription d'une couverture indicielle contre le déficit hydrique sur maïs blanc.",
+            "declared_harvest_estimate_kg": 5000,
+            "guarantees_or_notes": "Police couplée au compte d'épargne agricole.",
+            "status": "debourse_actif",
+            "ai_evaluation": {
+                "score": 76.0,
+                "verdict": "favorable",
+                "verdict_label": "Souscription Recommandée",
+                "strengths": [
+                    "Géoréférencement satellite haute précision disponible.",
+                    "Historique de 3 saisons de récoltes régulières."
+                ],
+                "risks": ["Zone sujette à des poches de sécheresse décennales en juin."],
+                "recommended_conditions": ["Franchise de 10% appliquée selon barème AMAB."],
+                "recommended_amount": 1200000,
+                "summary": "Risque assurable avec excellent ratio de solvabilité.",
+                "farmer_advice": "Conservez le numéro de contrat pour la déclaration de semis par SMS.",
+                "type_specific_metrics": {"climate_vulnerability": "moderee", "recommended_deductible_pct": 10}
+            },
+            "agent_decision": {
+                "status": "approuve",
+                "decided_by_npi": agent_npi,
+                "decided_by_name": "Démo Agent État",
+                "amount_approved": 1200000,
+                "interest_rate_approved": None,
+                "duration_approved_months": 12,
+                "conditions": ["Validation de la délimitation parcellaire"],
+                "motivation_or_notes": "Couverture validée avec prime subventionnée à 50% par le FNDA.",
+                "decided_at": now - timedelta(days=20),
+            },
+            "disbursement": {
+                "disbursed_at": now - timedelta(days=18),
+                "contract_ref": "AGRI-ASSUR-8801",
+                "payment_reference": "PRM-AMAB-2026-003",
+                "disbursed_by": agent_npi,
+                "notes": "Police d'assurance active pour la campagne 2026."
+            },
+            "is_demo": True,
+            "created_at": now - timedelta(days=25),
+            "updated_at": now - timedelta(days=18),
+        },
+        # 3. Démo Exploitant - Subvention bas-fond en cours
+        {
+            "offer_id": offer_ids[4],
+            "offer_title": offers[4]["title"],
+            "offer_type": offers[4]["type"],
+            "offer_institution": offers[4]["institution"],
+            "farmer_npi": farmer_1["npi"],
+            "farmer_name": farmer_1["full_name"],
+            "farmer_phone": farmer_1["phone"],
+            "department": demo_land["department"],
+            "commune": demo_land["commune"],
+            "land_id": str(demo_land["_id"]),
+            "land_title": demo_land.get("title", f"Parcelle {demo_land.get('crop_type', 'Maïs')} ({demo_land.get('commune', 'Dangbo')})"),
+            "crop_type": "Riz",
+            "surface_ha": 2.0,
+            "amount_requested": 2500000,
+            "amount_approved": None,
+            "project_description": "Aménagement hydro-agricole de 2 hectares de bas-fond pour production de riz NERICA avec diguettes en terre battue.",
+            "declared_harvest_estimate_kg": 7000,
+            "guarantees_or_notes": "Participation communautaire en main-d'œuvre locale pour le terrassement.",
+            "status": "soumis",
+            "ai_evaluation": {
+                "score": 84.0,
+                "verdict": "favorable",
+                "verdict_label": "Attribution Recommandée (Haute Priorité)",
+                "strengths": [
+                    "Alignement stratégique parfait avec le Programme National de Développement de la Filière Riz (PNDF-Riz).",
+                    "Effet levier estimé à 2.8 × la subvention en volume de production annuelle.",
+                    "Topographie propice à la rétention d'eau en bas-fond sans motopompe lourde."
+                ],
+                "risks": [
+                    "Risque de crue soudaine nécessitant un déversoir de crue sécurisé."
+                ],
+                "recommended_conditions": [
+                    "Visite technique de l'ingénieur du génie rural de l'ATDA avant terrassement.",
+                    "Achat exclusif de semences homologuées certifiées MAEP."
+                ],
+                "recommended_amount": 2500000,
+                "summary": "Projet structurant à forte valeur ajoutée locale contribuant directement à la sécurité alimentaire du département de l'Ouémé.",
+                "farmer_advice": "Prévoyez les tranchées de drainage avant les grandes pluies pour faciliter le repiquage du riz.",
+                "type_specific_metrics": {"strategic_crop_priority": "Filière prioritaire PAG", "leverage_multiplier": 2.8}
+            },
+            "agent_decision": None,
+            "disbursement": None,
+            "is_demo": True,
+            "created_at": now - timedelta(days=2),
+            "updated_at": now - timedelta(days=2),
+        },
+        # 4. Exploitant 2 - Crédit équipement approuvé (Banikoara)
+        {
+            "offer_id": offer_ids[1],
+            "offer_title": offers[1]["title"],
+            "offer_type": offers[1]["type"],
+            "offer_institution": offers[1]["institution"],
+            "farmer_npi": farmer_2["npi"],
+            "farmer_name": farmer_2["full_name"],
+            "farmer_phone": farmer_2["phone"],
+            "department": "Alibori",
+            "commune": "Banikoara",
+            "land_id": None,
+            "land_title": None,
+            "crop_type": "Coton",
+            "surface_ha": 6.5,
+            "amount_requested": 4500000,
+            "amount_approved": 4000000,
+            "project_description": "Acquisition d'un motoculteur diesel 15 CV avec charrue et remorque pour préparation des sols cotonniers.",
+            "declared_harvest_estimate_kg": 8500,
+            "guarantees_or_notes": "Gage sur le matériel roulant avec assurance multirisque engin.",
+            "status": "approuve",
+            "ai_evaluation": {
+                "score": 79.0,
+                "verdict": "favorable",
+                "verdict_label": "Avis Favorable - Dossier Solvable",
+                "strengths": [
+                    "Grande superficie cotonière (6.5 ha) justifiant pleinement la mécanisation.",
+                    "Revenus cotonniers récurrents facilitant l'amortissement sur 36 mois."
+                ],
+                "risks": ["Coût de maintenance et disponibilité des pièces de rechange à Banikoara."],
+                "recommended_conditions": ["Contrat d'entretien auprès d'un mécanicien agréé."],
+                "recommended_amount": 4000000,
+                "summary": "Projet de mécanisation viable et rentable. Montant ajusté à 4 000 000 FCFA avec apport de 500 000 FCFA.",
+                "farmer_advice": "Partagez l'utilisation de l'engin avec vos voisins de coopérative pour accélérer l'amortissement.",
+                "type_specific_metrics": {"debt_to_revenue_ratio": 0.47, "solvency_coverage_ratio": 2.1}
+            },
+            "agent_decision": {
+                "status": "approuve",
+                "decided_by_npi": agent_npi,
+                "decided_by_name": "Démo Agent État",
+                "amount_approved": 4000000,
+                "interest_rate_approved": 4.0,
+                "duration_approved_months": 36,
+                "conditions": ["Gage du matériel avec carte grise au nom du FNDA", "Formation à l'entretien préventif"],
+                "motivation_or_notes": "Accord favorable avec réfaction à 4M FCFA selon devis négocié avec le concessionnaire.",
+                "decided_at": now - timedelta(days=7),
+            },
+            "disbursement": None,
+            "is_demo": True,
+            "created_at": now - timedelta(days=15),
+            "updated_at": now - timedelta(days=7),
+        },
+        # 5. Exploitant 3 - Assurance multirisque active (Allada)
+        {
+            "offer_id": offer_ids[3],
+            "offer_title": offers[3]["title"],
+            "offer_type": offers[3]["type"],
+            "offer_institution": offers[3]["institution"],
+            "farmer_npi": farmer_3["npi"],
+            "farmer_name": farmer_3["full_name"],
+            "farmer_phone": farmer_3["phone"],
+            "department": "Atlantique",
+            "commune": "Allada",
+            "land_id": None,
+            "land_title": None,
+            "crop_type": "Soja",
+            "surface_ha": 3.0,
+            "amount_requested": 800000,
+            "amount_approved": 800000,
+            "project_description": "Couverture d'assurance multirisque récolte pour 3 ha de soja biologique.",
+            "declared_harvest_estimate_kg": 4500,
+            "guarantees_or_notes": "Contrat d'agrégation avec une usine de transformation de soja locale.",
+            "status": "debourse_actif",
+            "ai_evaluation": {
+                "score": 75.0,
+                "verdict": "favorable",
+                "verdict_label": "Souscription Recommandée",
+                "strengths": ["Débouché commercial garanti avec acheteur agréé."],
+                "risks": ["Sensibilité aux chenilles en phase de floraison."],
+                "recommended_conditions": ["Signalement sous 48h en cas de sinistre constaté."],
+                "recommended_amount": 800000,
+                "summary": "Dossier conforme et risque bien maîtrisé.",
+                "farmer_advice": "Vérifiez vos parcelles deux fois par semaine pour prévenir les attaques de noctuelles.",
+                "type_specific_metrics": {"climate_vulnerability": "faible"}
+            },
+            "agent_decision": {
+                "status": "approuve",
+                "decided_by_npi": agent_npi,
+                "decided_by_name": "Démo Agent État",
+                "amount_approved": 800000,
+                "interest_rate_approved": None,
+                "duration_approved_months": 12,
+                "conditions": ["Contrat d'agrégation vérifié"],
+                "motivation_or_notes": "Souscription validée pour la campagne soja.",
+                "decided_at": now - timedelta(days=10),
+            },
+            "disbursement": {
+                "disbursed_at": now - timedelta(days=9),
+                "contract_ref": "AGRI-ASSUR-9204",
+                "payment_reference": "PRM-CNAR-2026-118",
+                "disbursed_by": agent_npi,
+                "notes": "Police activée."
+            },
+            "is_demo": True,
+            "created_at": now - timedelta(days=14),
+            "updated_at": now - timedelta(days=9),
+        },
+        # 6. Exploitant 4 - Crédit rejeté pour surendettement (Parakou)
+        {
+            "offer_id": offer_ids[0],
+            "offer_title": offers[0]["title"],
+            "offer_type": offers[0]["type"],
+            "offer_institution": offers[0]["institution"],
+            "farmer_npi": farmer_4["npi"],
+            "farmer_name": farmer_4["full_name"],
+            "farmer_phone": farmer_4["phone"],
+            "department": "Borgou",
+            "commune": "Parakou",
+            "land_id": None,
+            "land_title": None,
+            "crop_type": "Maïs",
+            "surface_ha": 0.8,
+            "amount_requested": 1800000,
+            "amount_approved": None,
+            "project_description": "Demande de fonds de roulement pour intrants et main-d'œuvre.",
+            "declared_harvest_estimate_kg": 1500,
+            "guarantees_or_notes": "Pas de garantie matérielle disponible.",
+            "status": "rejete",
+            "ai_evaluation": {
+                "score": 32.0,
+                "verdict": "defavorable",
+                "verdict_label": "Avis Défavorable - Risque Élevé",
+                "strengths": ["Motivation de l'exploitant pour intensifier la culture."],
+                "risks": [
+                    "Surendettement manifeste : le montant demandé (1.8M FCFA) est 6 fois supérieur à la valeur de la récolte (300 000 FCFA).",
+                    "Surface très modeste (0.8 ha) ne permettant pas de couvrir les échéances de prêt."
+                ],
+                "recommended_conditions": ["Restructurer la demande à un montant maximal de 250 000 FCFA."],
+                "recommended_amount": 250000,
+                "summary": "Incompatibilité majeure entre le montant sollicité et la capacité réelle de production de la parcelle.",
+                "farmer_advice": "Ajustez votre demande à la taille réelle de votre exploitation (0.8 ha) pour éviter le surendettement.",
+                "type_specific_metrics": {"debt_to_revenue_ratio": 6.0, "solvency_coverage_ratio": 0.16}
+            },
+            "agent_decision": {
+                "status": "rejete",
+                "decided_by_npi": agent_npi,
+                "decided_by_name": "Démo Agent État",
+                "amount_approved": None,
+                "interest_rate_approved": None,
+                "duration_approved_months": None,
+                "conditions": [],
+                "motivation_or_notes": "Capacité financière insuffisante. Le montant demandé excède très largement la valeur attendue de la récolte.",
+                "decided_at": now - timedelta(days=3),
+            },
+            "disbursement": None,
+            "is_demo": True,
+            "created_at": now - timedelta(days=8),
+            "updated_at": now - timedelta(days=3),
+        }
+    ]
+
+    await db["financial_applications"].insert_many(applications)
+    return len(offers), len(applications)
+
+
 async def reset_demo(db) -> dict:
     return {c: (await db[c].delete_many({"is_demo": True})).deleted_count for c in COLLECTIONS}
 
@@ -905,6 +1399,9 @@ async def seed_demo(db, farmers: int = 80, seed: int = 229) -> dict:
     # --- Données de santé des exploitants (assistance IA et coordination territoriale)
     counts["farmer_health_alerts"] = await _seed_farmer_health(db, rng, users, lands, now, agent_npi)
 
+    # --- Données de crédit, assurance et financement agricole (FNDA / MAEP)
+    counts["financial_offers"], counts["financial_applications"] = await _seed_financial_services(db, rng, users, lands, now, agent_npi)
+
     # --- Quelques notifications pour les comptes de démonstration
     notes = [
         {"npi": DEMO_ACCOUNTS[0][0], "type": "sanitary_alert", "title": "Alerte : Chenille légionnaire d'automne",
@@ -913,10 +1410,14 @@ async def seed_demo(db, farmers: int = 80, seed: int = 229) -> dict:
          "message": "Démo Acheteur est intéressé(e) par votre offre.", "pictogram": "buyer"},
         {"npi": DEMO_ACCOUNTS[0][0], "type": "health_assigned", "title": "Service de santé assigné",
          "message": "Votre alerte santé a été confiée à : Hôpital de Zone Dangbo-Adjohoun-Bonou. Équipe SAMU mobilisée.", "pictogram": "hospital"},
+        {"npi": DEMO_ACCOUNTS[0][0], "type": "finance_decision", "title": "Crédit approuvé : 800 000 FCFA",
+         "message": "Votre demande de microcrédit intrants FNDA a été validée par la CLCAM.", "pictogram": "buyer"},
         {"npi": agent_npi, "type": "sanitary_alert", "title": "Alerte : Chenille de la capsule",
          "message": "7 cas signalés à Banikoara ces 30 derniers jours.", "pictogram": "bug"},
         {"npi": agent_npi, "type": "health_alert", "title": "Alerte vitale : Intoxication pesticide",
          "message": "Urgence vitale signalée à Banikoara : ouvrier agricole intoxiqué lors d'une pulvérisation.", "pictogram": "heart"},
+        {"npi": agent_npi, "type": "finance_application", "title": "Nouveau dossier de financement à instruire",
+         "message": "Demande de subvention aménagement de bas-fond déposée à Dangbo (2 500 000 FCFA).", "pictogram": "bank"},
     ]
     await db["notifications"].insert_many([{**n, "data": {}, "read": False, "is_demo": True, "created_at": now} for n in notes])
     counts["notifications"] = len(notes)
