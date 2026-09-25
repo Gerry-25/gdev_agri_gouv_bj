@@ -43,6 +43,12 @@ points trop imprécis (plus de 30 m), peut ajouter un point automatiquement tous
 brouillon à chaque point. Sans réseau, la parcelle part dans la file d'attente et sera envoyée plus tard.
 La surface affichée pendant le relevé est une estimation ; celle du serveur fait foi.
 
+### Photos et hors ligne
+
+Les photos de diagnostic sont réduites dans le téléphone (1600 px, JPEG) avant l'envoi. Sans réseau, la photo
+et le formulaire partent dans la file d'attente (`registerSenders` dans `apps/web/src/lib/senders.ts` : parcelles,
+diagnostics, stocks) et sont envoyés au retour de la connexion, avec la date réelle de la photo.
+
 ## Commandes
 
 | Commande | Rôle |

@@ -50,4 +50,5 @@ class DiagnosisResponse(DiagnosisResult):
     image_url: Optional[str] = Field(None, description="Chemin de la photo conservée (authentification requise)")
     client_ref: Optional[str] = None
     observed_at: Optional[datetime] = Field(None, description="Date de prise de la photo (peut précéder l'envoi en mode hors ligne)")
+    qa: list[dict] = Field(default_factory=list, description="Questions de suivi posées sur ce diagnostic et réponses de l'IA")
     created_at: Optional[datetime] = None

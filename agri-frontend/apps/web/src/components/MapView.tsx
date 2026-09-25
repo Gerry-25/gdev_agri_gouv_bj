@@ -15,6 +15,8 @@ export interface Position {
 
 interface Props {
   parcels?: GeoJSON.FeatureCollection;
+  /** Points colorés par leur propriété « color » (alertes sanitaires). */
+  points?: GeoJSON.FeatureCollection;
   draft?: LngLat[];
   position?: Position | null;
   fitBounds?: [LngLat, LngLat] | null;
@@ -61,6 +63,7 @@ function addOverlays(map: maplibregl.Map) {
   map.addSource("parcels", { type: "geojson", data: EMPTY });
   map.addSource("parcels-points", { type: "geojson", data: EMPTY });
   map.addSource("draft", { type: "geojson", data: EMPTY });
+  map.addSource("points", { type: "geojson", data: EMPTY });
   map.addSource("position", { type: "geojson", data: EMPTY });
   map.addLayer({ id: "parcels-fill", type: "fill", source: "parcels", minzoom: POINTS_UNTIL_ZOOM - 1, paint: { "fill-color": PARCEL_COLOR, "fill-opacity": 0.28 } });
   map.addLayer({ id: "parcels-line", type: "line", source: "parcels", minzoom: POINTS_UNTIL_ZOOM - 1, paint: { "line-color": PARCEL_COLOR, "line-width": 2.5 } });
@@ -70,12 +73,15 @@ function addOverlays(map: maplibregl.Map) {
   map.addLayer({ id: "draft-line", type: "line", source: "draft", filter: ["!=", ["geometry-type"], "Point"], paint: { "line-color": "#1d4ed8", "line-width": 3, "line-dasharray": [2, 1] } });
   map.addLayer({ id: "draft-points", type: "circle", source: "draft", filter: ["==", ["geometry-type"], "Point"],
                  paint: { "circle-radius": 6, "circle-color": "#1d4ed8", "circle-stroke-color": "#fff", "circle-stroke-width": 2 } });
+  map.addLayer({ id: "points", type: "circle", source: "points",
+                 paint: { "circle-color": ["match", ["get", "alert_color"], "red", "#dc2626", "orange", "#ea580c", "yellow", "#ca8a04", "green", "#047857", "#525252"],
+                          "circle-radius": ["interpolate", ["linear"], ["zoom"], 6, 4, 12, 7], "circle-stroke-color": "#fff", "circle-stroke-width": 1.5 } });
   map.addLayer({ id: "position-accuracy", type: "fill", source: "position", filter: ["==", ["geometry-type"], "Polygon"], paint: { "fill-color": "#0ea5e9", "fill-opacity": 0.15 } });
   map.addLayer({ id: "position-dot", type: "circle", source: "position", filter: ["==", ["geometry-type"], "Point"],
                  paint: { "circle-radius": 8, "circle-color": "#0284c7", "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
 }
 
-export function MapView({ parcels, draft, position, fitBounds, onMapClick, onParcelClick, onViewChange, className = "h-80", label = "Carte" }: Props) {
+export function MapView({ parcels, points, draft, position, fitBounds, onMapClick, onParcelClick, onViewChange, className = "h-80", label = "Carte" }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [ready, setReady] = useState(false);
@@ -84,8 +90,8 @@ export function MapView({ parcels, draft, position, fitBounds, onMapClick, onPar
   const online = useOnline();
   const handlers = useRef({ onMapClick, onParcelClick, onViewChange });
   handlers.current = { onMapClick, onParcelClick, onViewChange };
-  const data = useRef({ parcels, draft, position });
-  data.current = { parcels, draft, position };
+  const data = useRef({ parcels, points, draft, position });
+  data.current = { parcels, points, draft, position };
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +107,7 @@ export function MapView({ parcels, draft, position, fitBounds, onMapClick, onPar
     (map.getSource("parcels") as GeoJSONSource).setData(data.current.parcels ?? EMPTY);
     (map.getSource("parcels-points") as GeoJSONSource).setData(centroids(data.current.parcels));
     (map.getSource("draft") as GeoJSONSource).setData(draftData(data.current.draft ?? []));
+    (map.getSource("points") as GeoJSONSource).setData(data.current.points ?? EMPTY);
     const pos = data.current.position;
     (map.getSource("position") as GeoJSONSource).setData(
       pos ? { type: "FeatureCollection", features: [circle(pos.lngLat, pos.accuracy), { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: pos.lngLat } }] } : EMPTY,
@@ -154,7 +161,7 @@ export function MapView({ parcels, draft, position, fitBounds, onMapClick, onPar
 
   useEffect(() => {
     if (ready) pushData();
-  }, [ready, parcels, draft, position]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ready, parcels, points, draft, position]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fitKey = fitBounds ? fitBounds.flat().map((v) => v.toFixed(5)).join(",") : "";
   useEffect(() => {
@@ -179,7 +186,7 @@ export function MapView({ parcels, draft, position, fitBounds, onMapClick, onPar
       )}
       {hasBasemap === false && base === "plan" && (
         <p className="absolute bottom-2 left-2 z-10 max-w-[70%] px-2 py-1 rounded bg-white/90 text-xs text-neutral-700 border border-neutral-200">
-          Fond de carte non installé sur ce serveur : seules les parcelles sont affichées.
+          Fond de carte non installé sur ce serveur : seules les données de la plateforme sont affichées.
         </p>
       )}
     </div>

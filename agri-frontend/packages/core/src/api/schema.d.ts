@@ -2600,6 +2600,13 @@ export interface components {
              * @description Date de prise de la photo (peut précéder l'envoi en mode hors ligne)
              */
             observed_at?: string | null;
+            /**
+             * Qa
+             * @description Questions de suivi posées sur ce diagnostic et réponses de l'IA
+             */
+            qa?: {
+                [key: string]: unknown;
+            }[];
             /** Created At */
             created_at?: string | null;
         };

@@ -1,10 +1,11 @@
 import { api, apiErrorMessage, formatDate, formatNumber, useSession } from "@agri/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeftRight, ClipboardCheck, FlaskConical, MapPin, Pencil, Scale, Sparkles, Sprout, Trash2, Volume2, Wheat,
+  ArrowLeftRight, ClipboardCheck, FlaskConical, MapPin, Pencil, Scale, Sparkles, Sprout, Trash2, Wheat,
 } from "lucide-react";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { AudioButton } from "../../components/AudioButton";
 import { MapView } from "../../components/MapView";
 import { Alert, Badge, Button, buttonClass, Card, CardHeader, Empty, Loading } from "../../components/ui";
 import { WeatherWidget } from "../../components/WeatherWidget";
@@ -128,7 +129,6 @@ function SoilAndFertilization({ land, owner }: { land: Land; owner: boolean }) {
   });
   const [resources, setResources] = useState<string[]>([]);
   const [budget, setBudget] = useState<"faible" | "moyen" | "eleve">("moyen");
-  const [playing, setPlaying] = useState(false);
   const generate = useMutation({
     mutationFn: async () => unwrap(await api.POST("/api/v1/lands/{land_id}/fertilization-plans", {
       params: { path: { land_id: land.id } }, body: { organic_resources: resources as never, budget_level: budget },
@@ -137,19 +137,6 @@ function SoilAndFertilization({ land, owner }: { land: Land; owner: boolean }) {
   });
   const latest = plans.data?.[0];
   const status = soil.data?.environment?.soil?.status;
-
-  const listen = async () => {
-    setPlaying(true);
-    try {
-      const res = await fetch(`/api/v1/lands/${land.id}/fertilization-plans/latest/audio`, { headers: { Authorization: `Bearer ${(await import("@agri/core")).authStore.get().accessToken}` } });
-      if (!res.ok) throw new Error();
-      const audio = new Audio(URL.createObjectURL(await res.blob()));
-      audio.onended = () => setPlaying(false);
-      await audio.play();
-    } catch {
-      setPlaying(false);
-    }
-  };
 
   return (
     <Card>
@@ -211,7 +198,7 @@ function SoilAndFertilization({ land, owner }: { land: Land; owner: boolean }) {
           <div className="p-3 rounded-lg bg-white border border-neutral-200">
             <div className="flex items-start justify-between gap-2">
               <p className="font-semibold">{latest.plan.simple_summary}</p>
-              <Button variant="soft" onClick={listen} loading={playing} aria-label="Écouter le plan"><Volume2 className="w-4 h-4" aria-hidden /></Button>
+              <AudioButton path={{ kind: "fertilization", landId: land.id }} />
             </div>
             <p className="text-sm text-neutral-600 mt-1">
               Rendement visé : <span className="tabular-nums">{formatNumber(latest.plan.expected_yield_kg_ha.low)} à {formatNumber(latest.plan.expected_yield_kg_ha.high)} kg/ha</span> ·

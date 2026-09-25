@@ -1,7 +1,7 @@
 # AgriSmart Bénin : fonctionnalités de la plateforme
 
 > Document de référence tenu à jour à chaque ajout ou modification.
-> **Backend : 4.0.1 · Frontend : 0.3.0 (intégration du template : étape 2 sur 5)**, dernière mise à jour : 24/09/2026.
+> **Backend : 4.0.1 · Frontend : 0.4.0 (intégration du template : étape 3 sur 5)**, dernière mise à jour : 24/09/2026.
 > Détails techniques : `README.md` de chaque dossier (`agri-backend`, `agri-frontend`).
 
 ## Sommaire
@@ -174,7 +174,7 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 |---|---|---|
 | 1. Structure et accueil | En-tête, navigation par rôle, connexion, notifications, langue, « Mon exploitation », accueil agent et superviseur | **Livrée** |
 | 2. Cadastre | Carte, relevé GPS, fiche parcelle, plan de fumure | **Livrée** |
-| 3. Diagnostic et stockage | Scanner photo, questions de suivi, météo, conseiller de stockage | À faire |
+| 3. Diagnostic et stockage | Scanner photo, questions de suivi, météo, conseiller de stockage | **Livrée** |
 | 4. Marché et supervision | Catalogue, annonces avec aide IA, portail acheteur, supervision, litiges, note hebdomadaire | À faire |
 | 5. Terres de l'État et conseils | Préparation des terres, plan IA, appels, candidatures, concessions, fiches et assistant vocal | À faire |
 
@@ -206,6 +206,21 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
   - **actions du propriétaire** : refaire le contour, modifier, transférer, supprimer ;
   - **vérification de terrain** par un agent ;
   - **carte nationale des agents** : chargement de la zone visible uniquement, filtres (à vérifier, en litige, vérifiées), points aux petites échelles et contours en zoomant.
+- **Diagnostic** :
+  - **photo prise depuis le champ**, réduite dans le téléphone avant l'envoi (environ 300 Ko au lieu de plusieurs Mo) ;
+  - **localisation** par la parcelle, la commune ou la position GPS ;
+  - **résultat** : couleur de gravité, résumé en langage simple **lu à voix haute**, étapes numérotées, conseil détaillé ;
+  - **questions de suivi à l'IA**, avec la photo prise en compte ;
+  - **historique** avec les photos ;
+  - **sans réseau**, la photo est gardée dans le téléphone et le diagnostic est fait automatiquement au retour de la connexion, avec la date réelle de la photo ;
+  - **veille sanitaire des agents** : carte des diagnostics colorés par gravité et liste des foyers par commune et maladie.
+- **Conseiller de stockage** :
+  - déclaration d'un stock (y compris hors ligne) ;
+  - risque de pertes expliqué ;
+  - contrôle à faire signalé ;
+  - saisie d'un contrôle (humidité, insectes, moisissures) ;
+  - conseil « vendre maintenant, vendre une partie ou stocker » avec le prix récent ;
+  - clôture du stock avec les pertes.
 - **Retraits** : le sélecteur de rôle, le téléchargement du code source et les libellés inexacts (« Vérifiée ANDF », classement fictif).
 
 ## 11. Points en attente
@@ -235,6 +250,7 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 
 | Version | Date | Modifications |
 |---|---|---|
+| Front 0.4.0 / 4.0.2 | 25/09/2026 | Intégration du template, étape 3 : Diagnostic (photo compressée, résultat audio, questions de suivi, historique, envoi différé hors ligne, veille sanitaire des agents) et conseiller de stockage. Backend : l'historique des questions est renvoyé avec le diagnostic. |
 | Front 0.3.0 | 25/09/2026 | Intégration du template, étape 2 : Cadastre (cartes MapLibre, fond vectoriel hébergé et hors ligne, vue satellite Esri, relevé GPS ou tracé sur carte, fiche parcelle avec récoltes, sol et plan de fumure, carte nationale des agents). |
 | Front 0.2.0 / 4.0.1 | 25/09/2026 | Intégration du template, étape 1 : application unique (structure, connexion, notifications, « Mon exploitation », accueil agent et superviseur), remplace les deux applications précédentes. Backend : rééquilibrage des priorités d'inspection (les anciennes déclarations ne masquent plus les foyers sanitaires). |
 | 4.0.0 | 25/09/2026 | Assistance IA : plan de mise en valeur des terres de l'État (profil environnemental automatique, relevé de terrain, orientations, photos, relecture experte, appel prérempli, analyse des candidatures), plan de fumure, assistant texte et voix adossé aux fiches validées, questions de suivi sur un diagnostic, conseiller de stockage, aide à la vente, synthèse de litige, priorités d'inspection, note hebdomadaire, analyse des concessions. Service d'IA centralisé : journal, cache, quotas, anonymisation. |

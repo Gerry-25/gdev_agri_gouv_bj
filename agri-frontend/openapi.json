@@ -3,7 +3,7 @@
  "info": {
   "title": "AgriSmart Benin API",
   "description": "Backend Monolithique Modulaire pour le Challenge Agriculture Intelligente",
-  "version": "4.0.0"
+  "version": "4.0.1"
  },
  "paths": {
   "/api/v1/auth/otp/request": {
@@ -8496,6 +8496,15 @@
       ],
       "title": "Observed At",
       "description": "Date de prise de la photo (peut précéder l'envoi en mode hors ligne)"
+     },
+     "qa": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "type": "array",
+      "title": "Qa",
+      "description": "Questions de suivi posées sur ce diagnostic et réponses de l'IA"
      },
      "created_at": {
       "anyOf": [
