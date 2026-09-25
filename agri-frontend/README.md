@@ -49,6 +49,12 @@ Les photos de diagnostic sont réduites dans le téléphone (1600 px, JPEG) avan
 et le formulaire partent dans la file d'attente (`registerSenders` dans `apps/web/src/lib/senders.ts` : parcelles,
 diagnostics, stocks) et sont envoyés au retour de la connexion, avec la date réelle de la photo.
 
+### Assistant vocal
+
+L'enregistrement utilise l'API MediaRecorder du navigateur (WebM/Opus sur Android, MP4 sur iPhone) et
+exige HTTPS en production. nginx autorise le micro pour le site (`Permissions-Policy`). La question est
+transcrite par Gemini, puis l'assistant ne répond qu'à partir des fiches **validées**.
+
 ## Commandes
 
 | Commande | Rôle |

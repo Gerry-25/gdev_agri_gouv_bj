@@ -1,20 +1,9 @@
 import { db, discardItem, formatRelative, processOutbox, retryItem, useSession } from "@agri/core";
 import { useLiveQuery } from "dexie-react-hooks";
-import { Construction } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Alert, Button, Card, CardHeader } from "../components/ui";
 import { tabsFor } from "../lib/nav";
 import { useOnline } from "../lib/useOnline";
-
-/** Écran prévu, construit dans une étape suivante de l'intégration. */
-export function Planned({ title, step }: { title: string; step: number }) {
-  return (
-    <Card>
-      <CardHeader icon={Construction} title={title} />
-      <p className="text-sm text-neutral-600">Cet écran est intégré à l'étape {step} du template.</p>
-    </Card>
-  );
-}
 
 export function MorePage() {
   const { user } = useSession();

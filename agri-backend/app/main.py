@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version="4.1.0",
+    version="4.2.0",
     description="Backend Monolithique Modulaire pour le Challenge Agriculture Intelligente",
     lifespan=lifespan,
 )

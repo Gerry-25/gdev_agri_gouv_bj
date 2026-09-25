@@ -2766,6 +2766,27 @@ export interface components {
             current_call_id?: string | null;
             /** Current Concession Id */
             current_concession_id?: string | null;
+            /** Environment */
+            environment?: {
+                [key: string]: unknown;
+            } | null;
+            /** Survey */
+            survey?: {
+                [key: string]: unknown;
+            } | null;
+            /** Orientation */
+            orientation?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Photos Count
+             * @default 0
+             */
+            photos_count?: number;
+            /** Latest Plan Id */
+            latest_plan_id?: string | null;
+            /** Validated Plan Id */
+            validated_plan_id?: string | null;
             /** Created By */
             created_by: string;
             /**
@@ -3680,6 +3701,11 @@ export interface components {
             review?: {
                 [key: string]: unknown;
             } | null;
+            /**
+             * Created By
+             * @description Agent ayant généré le plan (la relecture doit venir d'un autre agent)
+             */
+            created_by?: string | null;
             /**
              * Created At
              * Format: date-time

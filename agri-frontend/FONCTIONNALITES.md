@@ -1,7 +1,7 @@
 # AgriSmart Bénin : fonctionnalités de la plateforme
 
 > Document de référence tenu à jour à chaque ajout ou modification.
-> **Backend : 4.1.0 · Frontend : 0.5.0 (intégration du template : étape 4 sur 5)**, dernière mise à jour : 24/09/2026.
+> **Backend : 4.2.0 · Frontend : 1.0.0 (intégration du template terminée)**, dernière mise à jour : 24/09/2026.
 > Détails techniques : `README.md` de chaque dossier (`agri-backend`, `agri-frontend`).
 
 ## Sommaire
@@ -176,7 +176,7 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 | 2. Cadastre | Carte, relevé GPS, fiche parcelle, plan de fumure | **Livrée** |
 | 3. Diagnostic et stockage | Scanner photo, questions de suivi, météo, conseiller de stockage | **Livrée** |
 | 4. Marché et supervision | Catalogue, annonces avec aide IA, portail acheteur, supervision, litiges, note hebdomadaire | **Livrée** |
-| 5. Terres de l'État et conseils | Préparation des terres, plan IA, appels, candidatures, concessions, fiches et assistant vocal | À faire |
+| 5. Terres de l'État et conseils | Préparation des terres, plan IA, appels, candidatures, concessions, fiches et assistant vocal | **Livrée** |
 
 ### Fonctionnalités livrées
 
@@ -233,6 +233,24 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
   - **litiges** : synthèse neutre et anonymisée par l'IA, puis décision motivée et communiquée aux parties ;
   - **transferts** de propriété à approuver ou rejeter ;
   - **note hebdomadaire** nationale ou départementale.
+- **Terres de l'État, côté exploitant** :
+  - score et éligibilité ;
+  - appels ouverts avec la carte de la terre, le cahier des charges et le plan de mise en valeur validé par l'expert ;
+  - vérification d'éligibilité avec les raisons, dépôt ou retrait de candidature ;
+  - acceptation ou désistement du lauréat, contestation pendant le délai ;
+  - suivi des concessions : redevance due, mise en valeur constatée, déclaration des récoltes.
+- **Terres de l'État, côté agents et superviseurs** :
+  - **terres** : enregistrement par GPS ou tracé sur carte, carte et liste ;
+  - **préparation** : liste de contrôle, relevé de terrain, orientations de l'État, photos géolocalisées, profil environnemental automatique ;
+  - **plan de mise en valeur par l'IA**, relecture par un expert enregistrée par un autre agent, appel prérempli depuis le plan ;
+  - **appels** : publication par un superviseur autre que le rédacteur, candidatures classées avec aide à l'analyse par l'IA, proposition justifiée (écart au classement signalé), validation par un autre superviseur, contestations, clôture ;
+  - **concessions** : enregistrement de l'acte officiel, inspections, paiements, analyse du suivi par l'IA, retrait ou fin ;
+  - **classement des exploitants** filtrable.
+- **Conseils** :
+  - **assistant** : question écrite ou **à voix haute** (enregistrement de 60 s maximum), réponse uniquement à partir des fiches validées, sources citées, **lecture audio** ;
+  - **fiches pratiques** par catégorie, avec recherche et écoute ;
+  - rédaction, validation et suppression des fiches par les agents.
+- **Filet de sécurité** : si un écran rencontre une erreur, un message remplace la page blanche et le reste de l'application continue de fonctionner.
 - **Retraits** : le sélecteur de rôle, le téléchargement du code source et les libellés inexacts (« Vérifiée ANDF », classement fictif).
 
 ## 11. Points en attente
@@ -244,7 +262,8 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 | Aligner les délais de la procédure d'attribution sur les textes | ANDF / juriste | À faire |
 | Vérifier les requêtes géographiques sur MongoDB réel | Équipe technique | À faire |
 | Faire relire les textes en fon et yoruba | Locuteurs natifs | À faire |
-| Intégrer le template (étapes 2 à 5) | Équipe frontend | En cours |
+| Intégrer le template | Équipe frontend | **Terminé** |
+| Tester l'assistant vocal sur de vrais téléphones Android (formats audio, qualité en extérieur) | Équipe technique | À faire |
 | Traduire les écrans en fon et yoruba | Locuteurs natifs | À faire |
 | Tester l'image Docker du frontend (nginx) | Équipe technique | À faire |
 | Générer le fond de carte du Bénin (`scripts/build-benin-tiles.sh`) | Équipe technique | À faire |
@@ -262,6 +281,7 @@ Une seule application (`agri-frontend/apps/web`), basée sur le template AgriSma
 
 | Version | Date | Modifications |
 |---|---|---|
+| Front 1.0.0 / 4.2.0 | 25/09/2026 | Intégration du template, étape 5 (terminée) : Terres de l'État (vue exploitant et vue agents : préparation, plan IA, relecture, appels, candidatures, attribution, contestations, concessions, classement) et Conseils (assistant écrit et vocal, fiches pratiques, gestion des fiches). Filet de sécurité d'affichage. Micro autorisé par nginx pour l'assistant vocal. Backend : la fiche d'une terre renvoie sa préparation (profil, relevé, orientations), le plan indique son auteur. |
 | Front 0.5.0 / 4.1.0 | 25/09/2026 | Intégration du template, étape 4 : Marché (catalogue, prix, publication assistée par l'IA, gestion des annonces), portail acheteur, Supervision (statistiques, stocks, litiges avec synthèse IA, transferts, note hebdomadaire). Backend : description des annonces, filtre « parcelles vérifiées », offres suivies par l'acheteur, correction du rendement par culture (il cumulait toutes les saisons). |
 | Front 0.4.0 / 4.0.2 | 25/09/2026 | Intégration du template, étape 3 : Diagnostic (photo compressée, résultat audio, questions de suivi, historique, envoi différé hors ligne, veille sanitaire des agents) et conseiller de stockage. Backend : l'historique des questions est renvoyé avec le diagnostic. |
 | Front 0.3.0 | 25/09/2026 | Intégration du template, étape 2 : Cadastre (cartes MapLibre, fond vectoriel hébergé et hors ligne, vue satellite Esri, relevé GPS ou tracé sur carte, fiche parcelle avec récoltes, sol et plan de fumure, carte nationale des agents). |

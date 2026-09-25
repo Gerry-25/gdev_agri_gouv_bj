@@ -8,7 +8,7 @@ import { AgentHome } from "./pages/AgentHome";
 import { BuyerHome } from "./pages/BuyerHome";
 import { FarmerDashboard } from "./pages/FarmerDashboard";
 import { LoginPage } from "./pages/LoginPage";
-import { MorePage, OutboxPage, Planned } from "./pages/misc";
+import { MorePage, OutboxPage } from "./pages/misc";
 
 // Écrans avec carte chargés à la demande : MapLibre n'alourdit pas l'accueil (réseau 3G)
 const cadastre = (name: "CadastrePage" | "NewParcelPage" | "ParcelDetailPage") => async () => {
@@ -43,8 +43,11 @@ export const router = createBrowserRouter([
       { path: "stockage", lazy: async () => ({ Component: (await import("./pages/storage/StoragePage")).StoragePage }) },
       { path: "marche", lazy: async () => ({ Component: (await import("./pages/market/MarketPage")).MarketPage }) },
       { path: "supervision", lazy: async () => ({ Component: (await import("./pages/supervision/SupervisionPage")).SupervisionPage }) },
-      { path: "concessions", element: <Planned title="Terres de l'État" step={5} /> },
-      { path: "reglementation", element: <Planned title="Conseils et réglementation" step={5} /> },
+      { path: "concessions", lazy: async () => ({ Component: (await import("./pages/lands/LandsPage")).LandsPage }) },
+      { path: "concessions/terres/nouvelle", lazy: async () => ({ Component: (await import("./pages/lands/NewDomainPage")).NewDomainPage }) },
+      { path: "concessions/terres/:id", lazy: async () => ({ Component: (await import("./pages/lands/DomainDetail")).DomainDetail }) },
+      { path: "concessions/terres/:id/appel", lazy: async () => ({ Component: (await import("./pages/lands/NewCallPage")).NewCallPage }) },
+      { path: "reglementation", lazy: async () => ({ Component: (await import("./pages/advice/AdvicePage")).AdvicePage }) },
       { path: "plus", element: <MorePage /> },
       { path: "envois", element: <OutboxPage /> },
       { path: "*", element: <Card><p className="text-sm">Cette page n'existe pas.</p></Card> },

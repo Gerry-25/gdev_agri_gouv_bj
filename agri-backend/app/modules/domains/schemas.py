@@ -59,6 +59,13 @@ class DomainOut(BaseModel):
     dispute_flag: bool
     current_call_id: Optional[str] = None
     current_concession_id: Optional[str] = None
+    # Préparation du plan de mise en valeur
+    environment: Optional[dict] = None
+    survey: Optional[dict] = None
+    orientation: Optional[dict] = None
+    photos_count: int = 0
+    latest_plan_id: Optional[str] = None
+    validated_plan_id: Optional[str] = None
     created_by: str
     created_at: datetime
     updated_at: datetime

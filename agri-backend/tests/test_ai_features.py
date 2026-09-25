@@ -284,3 +284,13 @@ def test_market_price_suggestion_and_draft(client, db, gemini):
     d = client.post(f"{V}/market/offers/ai-draft", headers=h, data={"notes": "maïs blanc bien sec", "quantity_kg": "500", "department": "Atlantique"},
                     files={"file": ("p.png", png_bytes(), "image/png")}).json()
     assert d["listing_text"] and d["price"]["reference_avg_fcfa_kg"] == 220 and d["status"] == "proposition"
+
+
+def test_domain_detail_returns_preparation(client, db, gemini, ext):
+    agent = make_agent(client, db)
+    did = client.post(f"{V}/domains", headers=agent, json=domain_payload(6.70, 2.45)).json()["id"]
+    client.post(f"{V}/domains/{did}/environment", headers=agent)
+    client.put(f"{V}/domains/{did}/survey", headers=agent, json=SURVEY)
+    client.put(f"{V}/domains/{did}/orientation", headers=agent, json=ORIENTATION)
+    d = client.get(f"{V}/domains/{did}", headers=agent).json()
+    assert d["environment"]["climate"]["status"] == "ok" and d["survey"]["land_use_history"] == "jachere" and d["orientation"]["vocation"] == "mixte"

@@ -3,7 +3,7 @@
  "info": {
   "title": "AgriSmart Benin API",
   "description": "Backend Monolithique Modulaire pour le Challenge Agriculture Intelligente",
-  "version": "4.0.2"
+  "version": "4.1.0"
  },
  "paths": {
   "/api/v1/auth/otp/request": {
@@ -8968,6 +8968,69 @@
       ],
       "title": "Current Concession Id"
      },
+     "environment": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Environment"
+     },
+     "survey": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Survey"
+     },
+     "orientation": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Orientation"
+     },
+     "photos_count": {
+      "type": "integer",
+      "title": "Photos Count",
+      "default": 0
+     },
+     "latest_plan_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Latest Plan Id"
+     },
+     "validated_plan_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Validated Plan Id"
+     },
      "created_by": {
       "type": "string",
       "title": "Created By"
@@ -11326,6 +11389,18 @@
        }
       ],
       "title": "Review"
+     },
+     "created_by": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created By",
+      "description": "Agent ayant généré le plan (la relecture doit venir d'un autre agent)"
      },
      "created_at": {
       "type": "string",

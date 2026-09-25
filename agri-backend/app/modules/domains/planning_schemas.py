@@ -148,6 +148,7 @@ class PlanOut(BaseModel):
     model: str
     data_used: dict
     review: Optional[dict] = None
+    created_by: Optional[str] = Field(None, description="Agent ayant généré le plan (la relecture doit venir d'un autre agent)")
     created_at: datetime
 
 

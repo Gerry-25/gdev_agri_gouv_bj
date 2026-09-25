@@ -1,7 +1,8 @@
 import { useSession, useUnreadCount } from "@agri/core";
 import { Bell } from "lucide-react";
 import { useState } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { tabsFor } from "../lib/nav";
 import { LanguageMenu, UserMenu } from "./menus";
 import { NotificationDrawer } from "./NotificationDrawer";
@@ -18,6 +19,7 @@ export function AppShell() {
   const { data: unread = 0 } = useUnreadCount();
   const [notifOpen, setNotifOpen] = useState(false);
   const mobileTabs = tabs.slice(0, 5);
+  const location = useLocation();
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -61,7 +63,10 @@ export function AppShell() {
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6 pb-28 lg:pb-8">
-        <Outlet />
+        {/* Réinitialisé à chaque changement d'écran */}
+        <ErrorBoundary key={location.pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       <nav
