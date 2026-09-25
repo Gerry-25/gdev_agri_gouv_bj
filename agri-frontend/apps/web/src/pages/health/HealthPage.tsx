@@ -683,16 +683,18 @@ function AgentHealthCockpit({
               <div className="p-3.5 rounded-lg border border-red-300 bg-red-50 text-red-950 space-y-2">
                 <div className="flex items-center gap-2 font-bold text-sm text-red-800">
                   <AlertOctagon className="w-4 h-4 text-red-600 animate-pulse" />
-                  Alertes vitales non résolues nécessitant une intervention immédiate :
+                  Foyers de veille sanitaire (communes avec alertes actives groupées) :
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {hotspots.map((h: any) => (
+                  {hotspots.map((h: any, idx: number) => (
                     <span
-                      key={h.id}
+                      key={h.id || `${h.department}-${h.commune}-${idx}`}
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white border border-red-200 text-xs font-semibold text-neutral-900 shadow-sm"
                     >
                       <span className="w-2 h-2 rounded-full bg-red-600 animate-ping" />
-                      {h.patient_name} ({h.commune}, {h.department}) · {h.category_label}
+                      {h.patient_name
+                        ? `${h.patient_name} (${h.commune}, ${h.department}) · ${h.category_label || ""}`
+                        : `${h.commune} (${h.department}) · ${h.active_cases || h.count || 2} cas actifs`}
                     </span>
                   ))}
                 </div>

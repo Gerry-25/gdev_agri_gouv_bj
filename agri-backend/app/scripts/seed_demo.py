@@ -94,7 +94,7 @@ DEMO_ACCOUNTS = [
 
 COLLECTIONS = ["users", "lands", "disputes", "transfers", "harvests", "market_offers", "offer_interests",
                "phytosanitary_alerts", "notifications", "state_domains", "calls", "applications", "contestations",
-               "concessions", "concession_reports", "concession_inspections", "stock_lots"]
+               "concessions", "concession_reports", "concession_inspections", "stock_lots", "farmer_health_alerts"]
 SEASONS = ["2025-A", "2025-B", "2026-A"]
 
 
@@ -236,6 +236,461 @@ async def _seed_state_domains(db, rng, polys, farmer_npis, now) -> dict:
             counts["concession_reports"] += 1
             counts["concession_inspections"] += 1
     return counts
+
+
+async def _seed_farmer_health(db, rng, users, lands, now, agent_npi) -> int:
+    """Génère des dossiers de santé réalistes (urgences, soins en cours, résolus) répartis sur le Bénin."""
+    demo_farmer = DEMO_ACCOUNTS[0]
+    farmer_users = [u for u in users if u.get("role") == "farmer" and u["npi"] != demo_farmer[0]]
+    demo_land_id = str(lands[0]["_id"]) if lands else None
+
+    health_alerts = [
+        # 1. Exploitant démo : Morsure de serpent prise en charge
+        {
+            "npi": demo_farmer[0],
+            "patient_name": demo_farmer[2],
+            "patient_relation": "exploitant",
+            "phone": demo_farmer[1],
+            "department": "Ouémé",
+            "commune": "Dangbo",
+            "locality": "Zone de bas-fonds de Dangbo",
+            "land_id": demo_land_id,
+            "symptoms": "Morsure de serpent à la cheville droite lors du désherbage. Forte douleur brûlante, gonflement immédiat remontant vers le mollet.",
+            "suspected_cause": "Reptile heurté sous les herbes de manioc",
+            "work_related": True,
+            "urgency_perceived": "vitale",
+            "urgency_level": "vitale",
+            "urgency_label": "Urgence vitale - Envenimation suspectée",
+            "category": "morsure_piqure",
+            "category_label": "Morsure de serpent ou piqûre venimeuse",
+            "ai_recommendation": {
+                "urgency_level": "vitale",
+                "urgency_label": "Urgence vitale - Envenimation suspectée",
+                "category": "morsure_piqure",
+                "category_label": "Morsure de serpent ou piqûre venimeuse",
+                "first_aid_steps": [
+                    "Allonger immédiatement la victime au repos complet (l'agitation accélère la diffusion du venin).",
+                    "Immobiliser la jambe atteinte avec une attelle ou une écharpe sans serrer, membre sous le niveau du cœur.",
+                    "Retirer sans délai chaussures et bracelets avant l'installation du gonflement (œdème).",
+                    "Nettoyer doucement à l'eau claire sans frotter et organiser le transport d'urgence."
+                ],
+                "things_to_avoid": [
+                    "NE JAMAIS poser de garrot serré (risque majeur de nécrose et d'amputation).",
+                    "NE JAMAIS inciser, sucer la plaie, ni brûler au niveau des points d'inoculation.",
+                    "NE PAS appliquer de poudres traditionnelles, feuilles ou glace."
+                ],
+                "avoid": [
+                    "NE JAMAIS poser de garrot serré (risque majeur de nécrose et d'amputation).",
+                    "NE JAMAIS inciser, sucer la plaie, ni brûler au niveau des points d'inoculation.",
+                    "NE PAS appliquer de poudres traditionnelles, feuilles ou glace."
+                ],
+                "medical_orientation": "Évacuation d'urgence immédiate vers l'Hôpital de Zone disposant de sérum antivenimeux.",
+                "medical_referral": "Évacuation d'urgence immédiate vers l'Hôpital de Zone disposant de sérum antivenimeux.",
+                "simple_summary": "Morsure de serpent suspectée : gardez la victime allongée et calme sans bouger la jambe. Ne faites ni garrot ni incision, et rejoignez l'hôpital pour l'antivenin."
+            },
+            "status": "pris_en_charge",
+            "assigned_service": {
+                "facility_name": "Hôpital de Zone Dangbo-Adjohoun-Bonou",
+                "facility_type": "hopital_de_zone",
+                "facility_phone": "+229 20 26 01 10",
+                "department": "Ouémé",
+                "commune": "Dangbo",
+                "intervention_type": "evacuation_urgence",
+                "instructions": "Équipe SAMU mobilisée avec sérum antivenimeux. Patient en cours de transfert.",
+                "assigned_by": agent_npi,
+                "assigned_at": now - timedelta(hours=2),
+            },
+            "resolution_notes": None,
+            "is_demo": True,
+            "created_at": now - timedelta(hours=3),
+            "updated_at": now - timedelta(hours=2),
+        },
+        # 2. Exploitant démo : Coupure d'outil traitée et résolue
+        {
+            "npi": demo_farmer[0],
+            "patient_name": demo_farmer[2],
+            "patient_relation": "exploitant",
+            "phone": demo_farmer[1],
+            "department": "Ouémé",
+            "commune": "Dangbo",
+            "locality": "Hangar de stockage",
+            "land_id": demo_land_id,
+            "symptoms": "Plaie superficielle à la main droite causée par un éclat de tôle en réparant le hangar.",
+            "suspected_cause": "Tôle rouillée",
+            "work_related": True,
+            "urgency_perceived": "faible",
+            "urgency_level": "faible",
+            "urgency_label": "Urgence faible - Soins locaux",
+            "category": "traumatisme_agricole",
+            "category_label": "Traumatisme et blessure agricole",
+            "ai_recommendation": {
+                "urgency_level": "faible",
+                "urgency_label": "Urgence faible - Soins locaux",
+                "category": "traumatisme_agricole",
+                "category_label": "Traumatisme et blessure agricole",
+                "first_aid_steps": [
+                    "Nettoyer abondamment la plaie à l'eau courante et au savon neutre.",
+                    "Appliquer un antiseptique local et couvrir avec une compresse propre.",
+                    "Vérifier le carnet de vaccination contre le tétanos."
+                ],
+                "things_to_avoid": [
+                    "NE PAS laisser la plaie souillée par la terre ou la poussière.",
+                    "NE PAS appliquer de produits corrosifs ou poudres non désinfectées."
+                ],
+                "avoid": [
+                    "NE PAS laisser la plaie souillée par la terre ou la poussière.",
+                    "NE PAS appliquer de produits corrosifs ou poudres non désinfectées."
+                ],
+                "medical_orientation": "Consultation au Centre de Santé d'Arrondissement (CSA) Dangbo pour pansement et rappel antitétanique.",
+                "medical_referral": "Consultation au Centre de Santé d'Arrondissement (CSA) Dangbo pour pansement et rappel antitétanique.",
+                "simple_summary": "Plaie superficielle : nettoyez abondamment au savon propre, désinfectez et faites vérifier votre vaccin antitétanique au CSA."
+            },
+            "status": "resolu",
+            "assigned_service": {
+                "facility_name": "Centre de Santé d'Arrondissement (CSA) Dangbo",
+                "facility_type": "centre_de_sante",
+                "facility_phone": "+229 97 00 11 22",
+                "department": "Ouémé",
+                "commune": "Dangbo",
+                "intervention_type": "soins_premiers_secours",
+                "instructions": "Désinfection et vérification du rappel antitétanique.",
+                "assigned_by": agent_npi,
+                "assigned_at": now - timedelta(days=5),
+            },
+            "resolution_notes": "Suture légère et pansement effectués. Rappel antitétanique à jour. Cicatrisation complète.",
+            "is_demo": True,
+            "created_at": now - timedelta(days=6),
+            "updated_at": now - timedelta(days=4),
+        },
+        # 3. Alibori / Banikoara : Intoxication pesticide coton (Signalé en attente -> urgence vitale cockpit)
+        {
+            "npi": farmer_users[0]["npi"] if len(farmer_users) > 0 else "0100000010",
+            "patient_name": "Bio Chabi",
+            "patient_relation": "ouvrier_agricole",
+            "phone": "+229 97 45 12 34",
+            "department": "Alibori",
+            "commune": "Banikoara",
+            "locality": "Zone cotonnière de Gomparou",
+            "land_id": None,
+            "symptoms": "Vertiges violents, nausées, vomissements répétés, hypersalivation et détresse respiratoire après pulvérisation de pesticides sur coton sans équipement de protection.",
+            "suspected_cause": "Inhalation d'insecticide organophosphoré",
+            "work_related": True,
+            "urgency_perceived": "vitale",
+            "urgency_level": "vitale",
+            "urgency_label": "Urgence vitale - Intoxication chimique aiguë",
+            "category": "intoxication_pesticide",
+            "category_label": "Intoxication par produit phytosanitaire",
+            "ai_recommendation": {
+                "urgency_level": "vitale",
+                "urgency_label": "Urgence vitale - Intoxication chimique aiguë",
+                "category": "intoxication_pesticide",
+                "category_label": "Intoxication par produit phytosanitaire",
+                "first_aid_steps": [
+                    "Éloigner immédiatement la victime du champ traité et retirer tous les vêtements contaminés.",
+                    "Laver abondamment le corps et le visage à grande eau claire et au savon pendant 15 minutes.",
+                    "Placer la victime en position latérale de sécurité (PLS) pour libérer les voies respiratoires.",
+                    "Conserver l'étiquette ou le flacon du produit pour le médecin urgentiste."
+                ],
+                "things_to_avoid": [
+                    "NE JAMAIS faire vomir (danger d'asphyxie et de brûlures caustiques).",
+                    "NE PAS donner de lait, d'huile ou d'alcool (ils facilitent l'absorption intestinale).",
+                    "NE PAS laisser la victime sans surveillance."
+                ],
+                "avoid": [
+                    "NE JAMAIS faire vomir (danger d'asphyxie et de brûlures caustiques).",
+                    "NE PAS donner de lait, d'huile ou d'alcool (ils facilitent l'absorption intestinale).",
+                    "NE PAS laisser la victime sans surveillance."
+                ],
+                "medical_orientation": "Évacuation d'extrême urgence vers l'Hôpital de Zone de Kandi ou CSA Banikoara.",
+                "medical_referral": "Évacuation d'extrême urgence vers l'Hôpital de Zone de Kandi ou CSA Banikoara.",
+                "simple_summary": "Intoxication chimique sévère aux pesticides : lavez abondamment la peau, déshabillez la victime et ne faites surtout pas vomir. Transportez-la d'urgence à l'hôpital avec l'emballage du produit."
+            },
+            "status": "signale",
+            "assigned_service": None,
+            "resolution_notes": None,
+            "is_demo": True,
+            "created_at": now - timedelta(hours=1),
+            "updated_at": now - timedelta(hours=1),
+        },
+        # 4. Atlantique / Allada : Plaie machette profonde (Prise en charge)
+        {
+            "npi": farmer_users[1]["npi"] if len(farmer_users) > 1 else "0100000011",
+            "patient_name": "Codjo Agossou",
+            "patient_relation": "exploitant",
+            "phone": "+229 96 11 22 33",
+            "department": "Atlantique",
+            "commune": "Allada",
+            "locality": "Plantation d'ananas de Tori",
+            "land_id": None,
+            "symptoms": "Coupure profonde à l'avant-bras gauche lors de la récolte d'ananas avec saignement abondant.",
+            "suspected_cause": "Coupe-coupe affûté",
+            "work_related": True,
+            "urgency_perceived": "urgente",
+            "urgency_level": "urgente",
+            "urgency_label": "Urgence chirurgicale - Plaie hémorragique",
+            "category": "traumatisme_agricole",
+            "category_label": "Traumatisme et blessure agricole",
+            "ai_recommendation": {
+                "urgency_level": "urgente",
+                "urgency_label": "Urgence chirurgicale - Plaie hémorragique",
+                "category": "traumatisme_agricole",
+                "category_label": "Traumatisme et blessure agricole",
+                "first_aid_steps": [
+                    "Comprimer fortement la plaie avec un tissu très propre pour arrêter le saignement.",
+                    "Surélever le bras au-dessus du niveau du cœur tout en maintenant la pression.",
+                    "Allonger le blessé pour éviter un malaise vagal."
+                ],
+                "things_to_avoid": [
+                    "NE PAS relâcher la compression pour vérifier si le sang coule toujours.",
+                    "NE PAS appliquer de sable, cendre ou café sur la plaie."
+                ],
+                "avoid": [
+                    "NE PAS relâcher la compression pour vérifier si le sang coule toujours.",
+                    "NE PAS appliquer de sable, cendre ou café sur la plaie."
+                ],
+                "medical_orientation": "Prise en charge au service des urgences du CHUD Atlantique (Allada).",
+                "medical_referral": "Prise en charge au service des urgences du CHUD Atlantique (Allada).",
+                "simple_summary": "Plaie profonde avec hémorragie : comprimez fortement la plaie avec un linge propre sans relâcher et surélevez le bras en rejoignant le CHUD Allada."
+            },
+            "status": "pris_en_charge",
+            "assigned_service": {
+                "facility_name": "CHUD Atlantique (Allada)",
+                "facility_type": "hopital_de_zone",
+                "facility_phone": "+229 21 39 01 44",
+                "department": "Atlantique",
+                "commune": "Allada",
+                "intervention_type": "consultation",
+                "instructions": "Prise en charge au bloc de petite chirurgie pour hémostase et suture.",
+                "assigned_by": agent_npi,
+                "assigned_at": now - timedelta(hours=4),
+            },
+            "resolution_notes": None,
+            "is_demo": True,
+            "created_at": now - timedelta(hours=5),
+            "updated_at": now - timedelta(hours=4),
+        },
+        # 5. Alibori / Malanville : Coup de chaleur (En cours)
+        {
+            "npi": farmer_users[2]["npi"] if len(farmer_users) > 2 else "0100000012",
+            "patient_name": "Yaya Sanni",
+            "patient_relation": "exploitant",
+            "phone": "+229 95 33 44 55",
+            "department": "Alibori",
+            "commune": "Malanville",
+            "locality": "Périmètre rizicole du fleuve Niger",
+            "land_id": None,
+            "symptoms": "Malaise soudain, confusion, peau sèche et brûlante, crampes musculaires douloureuses après 7h sous le soleil.",
+            "suspected_cause": "Canicule et manque d'hydratation",
+            "work_related": True,
+            "urgency_perceived": "moderee",
+            "urgency_level": "moderee",
+            "urgency_label": "Urgence modérée - Coup de chaleur",
+            "category": "coup_chaleur_deshydratation",
+            "category_label": "Coup de chaleur et déshydratation",
+            "ai_recommendation": {
+                "urgency_level": "moderee",
+                "urgency_label": "Urgence modérée - Coup de chaleur",
+                "category": "coup_chaleur_deshydratation",
+                "category_label": "Coup de chaleur et déshydratation",
+                "first_aid_steps": [
+                    "Installer immédiatement le patient à l'ombre fraîche et bien aérée.",
+                    "Mouiller le visage, le cou et le torse avec un linge frais humide.",
+                    "Faire boire de petites gorgées d'eau fraîche légèrement salée s'il est conscient."
+                ],
+                "things_to_avoid": [
+                    "NE PAS donner à boire s'il est somnolent ou désorienté (risque de fausse route).",
+                    "NE PAS plonger brutalement dans de l'eau glacée (choc thermique)."
+                ],
+                "avoid": [
+                    "NE PAS donner à boire s'il est somnolent ou désorienté (risque de fausse route).",
+                    "NE PAS plonger brutalement dans de l'eau glacée (choc thermique)."
+                ],
+                "medical_orientation": "Prise en charge à l'Hôpital de Zone de Malanville pour réhydratation intraveineuse.",
+                "medical_referral": "Prise en charge à l'Hôpital de Zone de Malanville pour réhydratation intraveineuse.",
+                "simple_summary": "Coup de chaleur sérieux : mettez le patient à l'ombre, rafraîchissez son corps avec de l'eau et conduisez-le au centre de santé pour réhydratation."
+            },
+            "status": "en_cours",
+            "assigned_service": {
+                "facility_name": "Hôpital de Zone Malanville",
+                "facility_type": "hopital_de_zone",
+                "facility_phone": "+229 23 67 01 10",
+                "department": "Alibori",
+                "commune": "Malanville",
+                "intervention_type": "consultation",
+                "instructions": "Patient perfusé en salle d'observation. Surveillance tensionnelle.",
+                "assigned_by": agent_npi,
+                "assigned_at": now - timedelta(hours=6),
+            },
+            "resolution_notes": None,
+            "is_demo": True,
+            "created_at": now - timedelta(hours=8),
+            "updated_at": now - timedelta(hours=6),
+        },
+        # 6. Borgou / Parakou : Paludisme grave enfant d'exploitant (Résolu)
+        {
+            "npi": farmer_users[3]["npi"] if len(farmer_users) > 3 else "0100000013",
+            "patient_name": "Mariam Bio Tchané",
+            "patient_relation": "membre_famille",
+            "phone": "+229 97 88 99 00",
+            "department": "Borgou",
+            "commune": "Parakou",
+            "locality": "Campement agricole de Baké",
+            "land_id": None,
+            "symptoms": "Forte fièvre à 39.8°C, convulsions fébriles brèves, refus de s'alimenter et frissons intenses.",
+            "suspected_cause": "Paludisme grave à Plasmodium falciparum",
+            "work_related": False,
+            "urgency_perceived": "urgente",
+            "urgency_level": "urgente",
+            "urgency_label": "Urgence pédiatrique - Paludisme grave",
+            "category": "infectieux_paludisme",
+            "category_label": "Accès fébrile et infectieux (Paludisme)",
+            "ai_recommendation": {
+                "urgency_level": "urgente",
+                "urgency_label": "Urgence pédiatrique - Paludisme grave",
+                "category": "infectieux_paludisme",
+                "category_label": "Accès fébrile et infectieux (Paludisme)",
+                "first_aid_steps": [
+                    "Déshabiller l'enfant et le garder dans une pièce aérée.",
+                    "Appliquer des linges tièdes (non froids) sur le front et l'abdomen.",
+                    "Transporter sans attendre vers le service pédiatrique du CHUD."
+                ],
+                "things_to_avoid": [
+                    "NE PAS baigner dans de l'eau glacée (danger de convulsions réactionnelles).",
+                    "NE PAS tenter d'automédication sans test TDR."
+                ],
+                "avoid": [
+                    "NE PAS baigner dans de l'eau glacée (danger de convulsions réactionnelles).",
+                    "NE PAS tenter d'automédication sans test TDR."
+                ],
+                "medical_orientation": "Prise en charge pédiatrique au CHUD Borgou (Parakou).",
+                "medical_referral": "Prise en charge pédiatrique au CHUD Borgou (Parakou).",
+                "simple_summary": "Paludisme grave suspecté : découvrez l'enfant, appliquez des linges tièdes et conduisez-le d'urgence au CHUD de Parakou pour injection d'antipaludiques."
+            },
+            "status": "resolu",
+            "assigned_service": {
+                "facility_name": "CHUD Borgou (Parakou)",
+                "facility_type": "hopital_de_zone",
+                "facility_phone": "+229 23 61 03 80",
+                "department": "Borgou",
+                "commune": "Parakou",
+                "intervention_type": "consultation",
+                "instructions": "Admission en pédiatrie pour protocole Artésunate.",
+                "assigned_by": agent_npi,
+                "assigned_at": now - timedelta(days=3),
+            },
+            "resolution_notes": "Traitement par Artésunate injectable puis relais ACT. Fièvre résolue, enfant guéri et rentré au domicile.",
+            "is_demo": True,
+            "created_at": now - timedelta(days=4),
+            "updated_at": now - timedelta(days=1),
+        },
+        # 7. Zou / Bohicon : Irritation oculaire herbicide (En cours)
+        {
+            "npi": farmer_users[4]["npi"] if len(farmer_users) > 4 else "0100000014",
+            "patient_name": "Koffi Dossou",
+            "patient_relation": "ouvrier_agricole",
+            "phone": "+229 96 55 66 77",
+            "department": "Zou",
+            "commune": "Bohicon",
+            "locality": "Champ de maïs de Zakpota",
+            "land_id": None,
+            "symptoms": "Irritation oculaire vive, toux quinteuse persistante et céphalées après mélange d'herbicides sans lunettes de protection.",
+            "suspected_cause": "Projections et vapeurs de désherbant",
+            "work_related": True,
+            "urgency_perceived": "moderee",
+            "urgency_level": "moderee",
+            "urgency_label": "Urgence modérée - Projection chimique",
+            "category": "intoxication_pesticide",
+            "category_label": "Intoxication par produit phytosanitaire",
+            "ai_recommendation": {
+                "urgency_level": "moderee",
+                "urgency_label": "Urgence modérée - Projection chimique",
+                "category": "intoxication_pesticide",
+                "category_label": "Intoxication par produit phytosanitaire",
+                "first_aid_steps": [
+                    "Rincer abondamment les yeux ouverts à l'eau claire tempérée pendant 15 minutes.",
+                    "S'asseoir au grand air et respirer calmement.",
+                    "Changer de vêtements et laver les mains et avant-bras."
+                ],
+                "things_to_avoid": [
+                    "NE PAS se frotter les yeux avec les mains sales.",
+                    "NE PAS utiliser de collyre médicamenteux sans prescription."
+                ],
+                "avoid": [
+                    "NE PAS se frotter les yeux avec les mains sales.",
+                    "NE PAS utiliser de collyre médicamenteux sans prescription."
+                ],
+                "medical_orientation": "Consultation au CSA Bohicon pour examen ophtalmique et traitement apaisant.",
+                "medical_referral": "Consultation au CSA Bohicon pour examen ophtalmique et traitement apaisant.",
+                "simple_summary": "Projection chimique oculaire : rincez abondamment à l'eau claire sans frotter et consultez le centre de santé pour contrôle cornéen."
+            },
+            "status": "en_cours",
+            "assigned_service": {
+                "facility_name": "Centre de Santé d'Arrondissement (CSA) Bohicon",
+                "facility_type": "centre_de_sante",
+                "facility_phone": "+229 22 51 03 45",
+                "department": "Zou",
+                "commune": "Bohicon",
+                "intervention_type": "consultation",
+                "instructions": "Rinçage oculaire au sérum physiologique et repos.",
+                "assigned_by": agent_npi,
+                "assigned_at": now - timedelta(hours=12),
+            },
+            "resolution_notes": None,
+            "is_demo": True,
+            "created_at": now - timedelta(hours=14),
+            "updated_at": now - timedelta(hours=12),
+        },
+        # 8. Plateau / Pobè : Chute d'arbre (Signalé en attente)
+        {
+            "npi": farmer_users[5]["npi"] if len(farmer_users) > 5 else "0100000015",
+            "patient_name": "Kpèdétin Ahouandjinou",
+            "patient_relation": "exploitant",
+            "phone": "+229 97 12 34 56",
+            "department": "Plateau",
+            "commune": "Pobè",
+            "locality": "Palmeraie d'Adja-Ouèrè",
+            "land_id": None,
+            "symptoms": "Chute d'une hauteur de 3 mètres lors de la coupe des régimes de palme. Douleur intense au bas du dos et impotence fonctionnelle.",
+            "suspected_cause": "Rupture de sangle de grimpe",
+            "work_related": True,
+            "urgency_perceived": "urgente",
+            "urgency_level": "urgente",
+            "urgency_label": "Urgence traumatique - Suspicion fracture",
+            "category": "traumatisme_agricole",
+            "category_label": "Traumatisme et blessure agricole",
+            "ai_recommendation": {
+                "urgency_level": "urgente",
+                "urgency_label": "Urgence traumatique - Suspicion fracture",
+                "category": "traumatisme_agricole",
+                "category_label": "Traumatisme et blessure agricole",
+                "first_aid_steps": [
+                    "Ne pas déplacer le blessé et maintenir sa tête et son dos parfaitement alignés.",
+                    "Couvrir d'un vêtement pour éviter le refroidissement en attendant les secours.",
+                    "Parler calmement au patient pour le rassurer."
+                ],
+                "things_to_avoid": [
+                    "NE JAMAIS tenter d'asseoir ou de faire marcher le blessé.",
+                    "NE PAS plier le dos ni tourner la tête brutalement."
+                ],
+                "avoid": [
+                    "NE JAMAIS tenter d'asseoir ou de faire marcher le blessé.",
+                    "NE PAS plier le dos ni tourner la tête brutalement."
+                ],
+                "medical_orientation": "Évacuation médicalisée par brancard rigide vers l'Hôpital de Zone de Pobè/Kétou.",
+                "medical_referral": "Évacuation médicalisée par brancard rigide vers l'Hôpital de Zone de Pobè/Kétou.",
+                "simple_summary": "Chute de hauteur avec traumatisme du dos : ne mobilisez sous aucun prétexte la victime et attendez les secours équipés d'un brancard rigide."
+            },
+            "status": "signale",
+            "assigned_service": None,
+            "resolution_notes": None,
+            "is_demo": True,
+            "created_at": now - timedelta(hours=3),
+            "updated_at": now - timedelta(hours=3),
+        }
+    ]
+
+    await db["farmer_health_alerts"].insert_many(health_alerts)
+    return len(health_alerts)
 
 
 async def reset_demo(db) -> dict:
@@ -447,14 +902,21 @@ async def seed_demo(db, farmers: int = 80, seed: int = 229) -> dict:
                                          "created_at": now, "updated_at": now} for l in lots])
     counts["stock_lots"] = len(lots)
 
+    # --- Données de santé des exploitants (assistance IA et coordination territoriale)
+    counts["farmer_health_alerts"] = await _seed_farmer_health(db, rng, users, lands, now, agent_npi)
+
     # --- Quelques notifications pour les comptes de démonstration
     notes = [
         {"npi": DEMO_ACCOUNTS[0][0], "type": "sanitary_alert", "title": "Alerte : Chenille légionnaire d'automne",
          "message": "9 cas signalés à Dangbo ces 30 derniers jours. Surveillez vos champs.", "pictogram": "bug"},
         {"npi": DEMO_ACCOUNTS[0][0], "type": "offer_interest", "title": "Un acheteur est intéressé",
          "message": "Démo Acheteur est intéressé(e) par votre offre.", "pictogram": "buyer"},
+        {"npi": DEMO_ACCOUNTS[0][0], "type": "health_assigned", "title": "Service de santé assigné",
+         "message": "Votre alerte santé a été confiée à : Hôpital de Zone Dangbo-Adjohoun-Bonou. Équipe SAMU mobilisée.", "pictogram": "hospital"},
         {"npi": agent_npi, "type": "sanitary_alert", "title": "Alerte : Chenille de la capsule",
          "message": "7 cas signalés à Banikoara ces 30 derniers jours.", "pictogram": "bug"},
+        {"npi": agent_npi, "type": "health_alert", "title": "Alerte vitale : Intoxication pesticide",
+         "message": "Urgence vitale signalée à Banikoara : ouvrier agricole intoxiqué lors d'une pulvérisation.", "pictogram": "heart"},
     ]
     await db["notifications"].insert_many([{**n, "data": {}, "read": False, "is_demo": True, "created_at": now} for n in notes])
     counts["notifications"] = len(notes)
