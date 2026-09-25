@@ -1,0 +1,55 @@
+services:
+  # Base de données MongoDB
+  mongodb:
+    image: mongo:7.0-jammy
+    container_name: agri_mongodb
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27019:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-a_remplacer_par_un_mot_de_passe_fort}
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    volumes:
+      - agri_mongo_data:/data/db
+
+  # Backend FastAPI
+  api:
+    build:
+      context: ./agri-backend
+      dockerfile: Dockerfile
+    container_name: agri_fastapi_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Remplace l'URL localhost du .env par le nom du conteneur MongoDB
+      MONGODB_URL: "mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-a_remplacer_par_un_mot_de_passe_fort}@mongodb:27017/?authSource=admin"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  # Frontend React (PWA) servi par Nginx avec reverse proxy vers l'API (/api/)
+  web:
+    build:
+      context: ./agri-frontend
+      dockerfile: Dockerfile
+      args:
+        # Clé Esri facultative (vue satellite), lue depuis .env si présente
+        VITE_ESRI_TOKEN: ${VITE_ESRI_TOKEN:-}
+    container_name: agri_web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+
+volumes:
+  agri_mongo_data:
