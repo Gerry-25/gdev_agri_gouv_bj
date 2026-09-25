@@ -6,7 +6,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import close_mongo_connection, connect_to_mongo, get_database
+from app.modules.agronomy.router import router as agronomy_router
+from app.modules.assistant.router import router as assistant_router
 from app.modules.auth.router import router as auth_router
+from app.modules.domains.planning import router as planning_router
+from app.modules.insights.router import router as insights_router
+from app.modules.storage.router import router as storage_router
 from app.modules.domains.router import router as domains_router
 from app.modules.knowledge.router import router as knowledge_router
 from app.modules.knowledge.seed import seed_guides
@@ -36,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version="3.1.0",
+    version="4.0.1",
     description="Backend Monolithique Modulaire pour le Challenge Agriculture Intelligente",
     lifespan=lifespan,
 )
@@ -51,8 +56,10 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 
-for r in (auth_router, lands_router, monitoring_router, market_router, state_router, knowledge_router, notifications_router,
-          performance_router, domains_router):
+# Ordre important : les routes fixes (/domains/plans/..., /lands/disputes/...) avant les routes à paramètre
+for r in (auth_router, insights_router, agronomy_router, lands_router, monitoring_router, market_router, state_router,
+          knowledge_router, notifications_router, performance_router, planning_router, domains_router, assistant_router,
+          storage_router):
     app.include_router(r, prefix=settings.API_V1_STR)
 
 

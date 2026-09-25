@@ -91,6 +91,7 @@ class CallBase(BaseModel):
     eligible_departments: list[DepartmentField] = Field(default_factory=list, description="Vide = tout le Bénin")
     opens_at: datetime
     closes_at: datetime
+    plan_id: Optional[str] = Field(None, description="Plan de mise en valeur de référence (publié s'il est validé)")
 
 
 class CallCreate(CallBase):
@@ -161,6 +162,7 @@ class PublicCallOut(BaseModel):
     applications_count: int
     awarded_to_name: Optional[str] = None
     contest_until: Optional[datetime] = None
+    plan_summary: Optional[dict] = Field(None, description="Résumé du plan de mise en valeur validé, pour les candidats")
 
 
 class ApplicationCreate(BaseModel):

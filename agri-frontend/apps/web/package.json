@@ -1,0 +1,25 @@
+{
+  "name": "@agri/web",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "build": "tsc -p . && vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "@agri/core": "*",
+    "@fontsource/atkinson-hyperlegible": "^5.2.0",
+    "@tanstack/react-query": "^5.90.0",
+    "dexie-react-hooks": "^4.2.0",
+    "lucide-react": "^1.48.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^6.30.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}

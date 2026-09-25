@@ -16,6 +16,7 @@ PICTOGRAMS = {
     "concession_active": "field",
     "concession_inspection": "check",
     "concession_ended": "field",
+    "storage_check": "warehouse",
 }
 
 

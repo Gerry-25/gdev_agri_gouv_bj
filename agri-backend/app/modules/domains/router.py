@@ -148,6 +148,10 @@ async def create_call(domain_id: str, payload: CallCreate, db=Depends(get_databa
         raise ds.conflict("Cette terre n'est pas disponible (appel ou concession en cours, ou terre retirée).")
     if await db["calls"].count_documents({"domain_id": domain_id, "status": {"$in": ds.OPEN_CALL_STATUSES}}):
         raise ds.conflict("Un appel est déjà en préparation ou en cours pour cette terre.")
+    if payload.plan_id:
+        plan_doc = await db["domain_plans"].find_one({"_id": ds.parse_object_id(payload.plan_id, "Plan")})
+        if not plan_doc or plan_doc["domain_id"] != domain_id:
+            raise HTTPException(status_code=422, detail="Ce plan ne concerne pas cette terre.")
     now = utcnow()
     doc = {**payload.model_dump(mode="json"), "opens_at": as_utc(payload.opens_at), "closes_at": as_utc(payload.closes_at),
            "domain_id": domain_id, "domain_name": domain["name"], "department": domain["department"], "commune": domain["commune"],
@@ -234,7 +238,9 @@ async def list_public_calls(
         filters["department"] = department
     calls = [c async for c in db["calls"].find(filters).sort("published_at", -1)]
     domains = {str(d["_id"]): d async for d in db["state_domains"].find({"_id": {"$in": [ds.parse_object_id(c["domain_id"]) for c in calls]}})}
-    out = [ds.public_call_out(c, domains[c["domain_id"]]) for c in calls if c["domain_id"] in domains]
+    plan_ids = [ds.parse_object_id(c["plan_id"]) for c in calls if c.get("plan_id")]
+    plans = {str(p["_id"]): p async for p in db["domain_plans"].find({"_id": {"$in": plan_ids}})} if plan_ids else {}
+    out = [ds.public_call_out(c, domains[c["domain_id"]], plans.get(c.get("plan_id") or "")) for c in calls if c["domain_id"] in domains]
     return [c for c in out if not phase or c["phase"] == phase]
 
 
@@ -254,7 +260,8 @@ async def get_public_call(call_id: str, db=Depends(get_database)):
     call = await ds.get_or_404(db, "calls", call_id, "Appel")
     if call["status"] in ("brouillon", "annule"):
         raise ds.not_found("Appel")
-    return ds.public_call_out(call, await ds.get_or_404(db, "state_domains", call["domain_id"], "Terre de l'État"))
+    plan_doc = await db["domain_plans"].find_one({"_id": ds.parse_object_id(call["plan_id"])}) if call.get("plan_id") else None
+    return ds.public_call_out(call, await ds.get_or_404(db, "state_domains", call["domain_id"], "Terre de l'État"), plan_doc)
 
 
 @router.get("/calls/{call_id}/manage", response_model=CallOut, tags=["Appels à candidatures"], summary="Dossier complet de l'appel (agents)")

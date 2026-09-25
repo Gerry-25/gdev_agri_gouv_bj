@@ -94,7 +94,7 @@ DEMO_ACCOUNTS = [
 
 COLLECTIONS = ["users", "lands", "disputes", "transfers", "harvests", "market_offers", "offer_interests",
                "phytosanitary_alerts", "notifications", "state_domains", "calls", "applications", "contestations",
-               "concessions", "concession_reports", "concession_inspections"]
+               "concessions", "concession_reports", "concession_inspections", "stock_lots"]
 SEASONS = ["2025-A", "2025-B", "2026-A"]
 
 
@@ -151,6 +151,17 @@ async def _seed_state_domains(db, rng, polys, farmer_npis, now) -> dict:
                   "points_count": len(poly.exterior.coords) - 1, "gps_accuracy_mean_m": 2.0, "capture_method": "survey",
                   "status": "disponible", "dispute_flag": False, "current_call_id": None, "current_concession_id": None,
                   "created_by": agent, "is_demo": True, "created_at": created, "updated_at": created}
+        if stage == "disponible" and idx == 17:
+            # Terre prête pour la démonstration du plan de mise en valeur par l'IA
+            domain["survey"] = {"survey_date": (now - timedelta(days=10)).date().isoformat(), "agroecological_zone": 2,
+                                "land_use_history": "jachere", "fallow_years": 5, "last_crops": ["Coton", "Maïs"],
+                                "water_sources": ["puits"], "irrigation_possible": False, "flooding_observed": "jamais",
+                                "vegetation_cover": "arbustive", "trees_to_preserve": "Karité", "erosion": "legere",
+                                "stoniness": "faible", "clearing_needed": "leger", "rainy_season_access": "bonne",
+                                "infrastructures": ["magasin"], "labor_availability": "bonne", "surveyed_by": agent, "saved_at": now}
+            domain["orientation"] = {"vocation": "semences", "priority_crops": ["Soja", "Maïs"], "excluded_crops": [],
+                                     "investment_level": "moyen", "mechanization": "attelee", "min_valorization_pct": 80,
+                                     "notes": "Production de semences certifiées pour la région.", "set_by": agent, "saved_at": now}
         domain_id = str((await db["state_domains"].insert_one(domain)).inserted_id)
         counts["state_domains"] += 1
         if stage == "disponible":
@@ -422,6 +433,19 @@ async def seed_demo(db, farmers: int = 80, seed: int = 229) -> dict:
 
     # --- Domaine privé de l'État : une terre à chaque étape de la procédure
     counts.update(await _seed_state_domains(db, rng, polys, farmer_npis, now))
+
+    # --- Stocks du compte exploitant (conseiller de stockage)
+    demo_land = next(l for l in lands if l["npi_owner"] == DEMO_ACCOUNTS[0][0])
+    lots = [
+        {"product": "Maïs", "quantity_kg": 1200, "initial_quantity_kg": 1200, "harvest_date": (now - timedelta(days=45)).date().isoformat(),
+         "storage_method": "grenier_traditionnel", "moisture_pct": 16, "last_moisture_pct": 16},
+        {"product": "Soja", "quantity_kg": 600, "initial_quantity_kg": 600, "harvest_date": (now - timedelta(days=20)).date().isoformat(),
+         "storage_method": "sac_hermetique", "moisture_pct": 11, "last_moisture_pct": 11},
+    ]
+    await db["stock_lots"].insert_many([{**l, "npi": DEMO_ACCOUNTS[0][0], "land_id": str(demo_land["_id"]), "department": demo_land["department"],
+                                         "commune": demo_land["commune"], "status": "en_stock", "checks": [], "is_demo": True,
+                                         "created_at": now, "updated_at": now} for l in lots])
+    counts["stock_lots"] = len(lots)
 
     # --- Quelques notifications pour les comptes de démonstration
     notes = [

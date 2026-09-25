@@ -3,9 +3,15 @@ from datetime import timedelta
 from typing import Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+import io
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from PIL import Image, UnidentifiedImageError
+from pydantic import BaseModel, Field
 from pymongo.errors import DuplicateKeyError
 
+from app.core import ai_service
+from app.core.config import settings
 from app.core.database import get_database
 from app.core.security import CurrentUser, get_current_user, get_optional_user, require_roles
 from app.core.utils import parse_object_id, serialize_doc, utcnow
@@ -247,3 +253,66 @@ async def reference_prices(
             "avg": round(r["avg"]), "min": round(r["min"]), "max": round(r["max"]), "count": r["n"],
         }
     return {"period_days": days, "prices": sorted(out.values(), key=lambda e: (e["product"], e["department"] or ""))}
+
+
+async def _price_basis(db, product: str, department: Optional[str], days: int = 90) -> dict:
+    """Base de prix déterministe : prix de vente constatés en priorité, sinon prix demandés."""
+    since = utcnow() - timedelta(days=days)
+    match = {"created_at": {"$gte": since}, "product_name": {"$regex": re.escape(product), "$options": "i"}, "status": {"$in": ["active", "sold"]}}
+    for scope, extra in (("departement", {"department": department} if department else None), ("national", {})):
+        if extra is None:
+            continue
+        rows = [r async for r in db["market_offers"].aggregate([
+            {"$match": {**match, **extra}},
+            {"$group": {"_id": "$status", "avg": {"$avg": {"$cond": [{"$eq": ["$status", "sold"]}, "$sold_unit_price_fcfa", "$unit_price_fcfa"]}},
+                        "n": {"$sum": 1}}}])]
+        by = {r["_id"]: r for r in rows}
+        ref = by.get("sold") or by.get("active")
+        if ref and ref["n"] >= 2:
+            avg = ref["avg"]
+            return {"scope": scope, "basis": "ventes constatées" if "sold" in by else "prix demandés", "observations": ref["n"],
+                    "suggested_min_fcfa_kg": round(avg * 0.9, -1), "suggested_max_fcfa_kg": round(avg * 1.1, -1), "reference_avg_fcfa_kg": round(avg)}
+    return {"scope": None, "basis": "pas assez de données sur la plateforme", "observations": 0}
+
+
+@router.get("/price-suggestion", summary="Fourchette de prix conseillée avant de publier (sans IA)")
+async def price_suggestion(db=Depends(get_database), product: str = Query(..., min_length=2, max_length=100),
+                           department: Optional[str] = Query(None, max_length=60)):
+    return await _price_basis(db, product, department)
+
+
+class OfferDraft(BaseModel):
+    product_name: str
+    quality_description: str = Field(..., description="Qualité visible et déclarée, sans exagération")
+    listing_text: str = Field(..., description="Texte d'annonce court et clair (3 phrases maximum)")
+    quality_warnings: list[str] = Field(default_factory=list, description="Défauts visibles à signaler honnêtement")
+
+
+@router.post("/offers/ai-draft", summary="Rédiger une annonce à partir d'une photo et de quelques mots (IA)")
+async def offer_draft(
+    notes: str = Form(..., min_length=3, max_length=500, description="Ex. : maïs blanc bien sec, récolte d'août"),
+    quantity_kg: Optional[float] = Form(None, gt=0),
+    department: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    db=Depends(get_database),
+    user: CurrentUser = Depends(require_roles("farmer")),
+):
+    parts = []
+    if file is not None:
+        raw = await file.read(settings.max_upload_bytes + 1)
+        if len(raw) > settings.max_upload_bytes:
+            raise HTTPException(status_code=413, detail="Photo trop volumineuse.")
+        try:
+            img = Image.open(io.BytesIO(raw)).convert("RGB")
+        except (UnidentifiedImageError, OSError):
+            raise HTTPException(status_code=400, detail="Image illisible.")
+        img.thumbnail((1024, 1024))
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=75)
+        parts.append((buf.getvalue(), "image/jpeg"))
+    prompt = ("Rédige une annonce de vente de récolte honnête pour un marché agricole béninois, à partir des notes du producteur"
+              + (" et de la photo jointe" if parts else "") + ". N'invente aucune certification ni qualité non visible ; "
+              f"signale les défauts visibles.\nNotes : {notes}\nQuantité : {quantity_kg or 'non précisée'} kg")
+    draft, run_id = await ai_service.generate(db, purpose="offer_draft", schema=OfferDraft, prompt=prompt, parts=parts, requested_by=user.npi)
+    return {**draft.model_dump(), "price": await _price_basis(db, draft.product_name.split()[0], department), **ai_service.ai_meta(run_id),
+            "note": "Brouillon à relire : le prix et le texte restent à votre choix."}

@@ -11,6 +11,8 @@ docker compose up -d --build
 docker compose exec api python -m app.scripts.seed_demo  # données de démonstration
 ```
 
+- Application terrain : http://localhost:8080 ; espace agents : http://localhost:8080/agents/
+  (nécessite le dossier `agri-frontend` à côté de `agri-backend`)
 - Documentation interactive : http://localhost:8000/docs
 - État du service : `GET /health`
 
@@ -36,6 +38,11 @@ Les tests utilisent une base en mémoire ; l'IA, la météo et les requêtes gé
 de MongoDB y sont simulées (voir `tests/conftest.py`).
 
 ## Guide pour le frontend
+
+Le client TypeScript du frontend est généré depuis le contrat OpenAPI :
+`python -m app.scripts.export_openapi > ../agri-frontend/openapi.json`, puis `npm run api:generate`
+dans `agri-frontend`. À refaire après chaque modification d'une route ou d'un schéma.
+
 
 Toutes les routes sont préfixées par `/api/v1`. Les erreurs renvoient `{"detail": "..."}` avec un message
 en français prêt à afficher (ou une liste de champs invalides pour les erreurs 422 de validation).
@@ -153,6 +160,49 @@ Score sur 100, détaillé critère par critère (`GET /performance/me`, `GET /st
 Seules les récoltes sur parcelles **vérifiées par un agent** et les récoltes déclarées sur une concession
 sont comptées. Éligibilité : au moins `PERFORMANCE_MIN_SEASONS` saisons et aucun litige ouvert.
 Le calcul se fait à la demande ; à grande échelle, il faudra le précalculer par une tâche planifiée.
+
+## Assistance IA
+
+Toutes les fonctions d'IA passent par `app/core/ai_service.py`, qui applique quatre garanties :
+
+- **l'IA propose, l'humain décide** : chaque sortie est journalisée (`ai_runs`) avec le modèle, la date et l'empreinte
+  des données, et affichée avec le statut `proposition` ; attributions, vérifications, litiges et score restent des
+  décisions humaines ;
+- **aucune donnée personnelle envoyée à Gemini** : NPI, noms et téléphones sont retirés des contextes ; les parties
+  d'un litige deviennent « partie A », « partie B » ;
+- **coûts maîtrisés** : cache des réponses identiques (`AI_CACHE_DAYS`) et quota par utilisateur (`AI_DAILY_QUOTA_PER_USER`) ;
+- **mode dégradé** : sans clé Gemini, les routes d'IA répondent 503 ; les calculs par règles (lecture du sol, risque de
+  stockage, priorités d'inspection, prix conseillé) continuent de fonctionner.
+
+| Fonction | Routes | Accès |
+|---|---|---|
+| Plan de mise en valeur d'une terre de l'État | `PUT /domains/{id}/survey`, `PUT /domains/{id}/orientation`, `POST /domains/{id}/photos`, `POST /domains/{id}/environment`, `GET /domains/{id}/readiness`, `POST /domains/{id}/plans`, `PATCH /domains/plans/{id}/review`, `GET /domains/plans/{id}/call-draft` | agent |
+| Aide à l'analyse d'une candidature | `POST /calls/{id}/applications/{app_id}/ai-review` | agent |
+| Sol et plan de fumure d'une parcelle | `GET·POST /lands/{id}/soil`, `POST·GET /lands/{id}/fertilization-plans`, `…/latest/audio` | propriétaire (lecture : + agent) |
+| Assistant (texte et voix) | `POST /assistant/ask`, `POST /assistant/ask-voice`, `GET /assistant/history`, `GET /assistant/answers/{id}/audio` | connecté |
+| Question de suivi sur un diagnostic | `POST /monitoring/diagnoses/{id}/ask` | auteur ou agent |
+| Prix conseillé et brouillon d'annonce | `GET /market/price-suggestion`, `POST /market/offers/ai-draft` | public / farmer |
+| Conseiller de stockage | `POST /storage/lots`, `GET /storage/lots/me`, `POST /storage/lots/{id}/checks`, `PATCH /storage/lots/{id}/status`, `POST /storage/lots/{id}/advice`, `GET /storage/overview` | farmer / agent |
+| Synthèse neutre d'un litige | `POST /lands/disputes/{id}/ai-summary` | agent |
+| Priorités d'inspection (règles, sans IA) | `GET /state/inspection-priorities` | agent |
+| Note hebdomadaire | `POST·GET /state/reports/weekly`, `GET /state/reports` | agent |
+| Analyse du suivi d'une concession | `POST /concessions/{id}/ai-review` | agent |
+
+### Données environnementales des terres
+
+Collectées automatiquement à partir du contour GPS (`app/core/environment/`), chaque source indépendamment :
+
+| Source | Données | Configuration |
+|---|---|---|
+| iSDAsoil (30 m) | pH, carbone organique, N, P, K, texture…, avec incertitude, à 0-20 et 20-50 cm | `ISDA_USERNAME`, `ISDA_PASSWORD` (compte gratuit) |
+| Open-Meteo archives | 10 ans de pluie et de températures, saisons des pluies, poches sèches | aucune |
+| Open-Meteo Elevation | altitude, pente, position (plateau, versant, bas-fond) | aucune |
+| OpenStreetMap (Overpass) | distances route, cours d'eau, marché | aucune |
+| Zones agroécologiques | suggestion par commune ou département, **confirmée par l'agent** dans le relevé | — |
+
+Le plan exige le profil environnemental, le relevé de terrain et les orientations de l'État ; les photos (jusqu'à 4
+transmises à l'IA) et l'analyse de sol au laboratoire améliorent sa fiabilité. Un plan n'est montré aux candidats
+qu'après **relecture par un expert** (INRAB, ATDA…) enregistrée par un autre agent que celui qui l'a généré.
 
 ## Endpoints
 

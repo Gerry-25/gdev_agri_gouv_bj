@@ -8,7 +8,9 @@ from google.genai import types
 from PIL import Image, UnidentifiedImageError
 from pymongo.errors import DuplicateKeyError
 
-from app.core import ai, geo, tts
+from pydantic import BaseModel, Field
+
+from app.core import ai, ai_service, geo, tts
 from app.core.benin import normalize_commune, normalize_department
 from app.core.config import settings
 from app.core.database import get_database
@@ -309,3 +311,33 @@ async def get_weather_for_land(land_id: str, db=Depends(get_database), user: Cur
     ensure_owner_or_agent(land, user)
     lon, lat = land["centroid"]["coordinates"]
     return {"land_id": land_id, "commune": land["commune"], **await weather.forecast(lat, lon)}
+
+
+class FollowUpQuestion(BaseModel):
+    question: str = Field(..., min_length=5, max_length=500)
+
+
+class FollowUpAnswer(BaseModel):
+    answer: str
+    simple_summary: str
+    see_advisor: bool = Field(..., description="Vrai si la situation justifie de consulter un conseiller agricole")
+
+
+@router.post("/diagnoses/{alert_id}/ask", summary="Poser une question sur un diagnostic (IA)")
+async def ask_about_diagnosis(alert_id: str, payload: FollowUpQuestion, db=Depends(get_database), user: CurrentUser = Depends(get_current_user)):
+    doc = await _get_diagnosis(db, alert_id, user)
+    if len(doc.get("qa", [])) >= 10:
+        raise HTTPException(status_code=409, detail="Nombre maximal de questions atteint pour ce diagnostic : consultez un conseiller.")
+    image = await db["diagnosis_images"].find_one({"_id": doc["_id"]})
+    context = {k: doc.get(k) for k in ("crop_identified", "health_status", "disease_name", "severity", "symptoms",
+                                        "treatment_steps", "treatment_advice", "commune", "observed_at")}
+    context["questions_precedentes"] = [{"q": q["question"], "r": q["answer"]} for q in doc.get("qa", [])]
+    lang = LANGUAGES.get(doc.get("language", "fr"), "français")
+    prompt = ("Un exploitant pose une question sur le diagnostic de sa plante (photo jointe si disponible). Réponds simplement, "
+              f"concrètement, sans contredire le diagnostic sans raison visible. simple_summary en {lang}.\n"
+              f"Diagnostic : {ai_service.to_prompt_json(context)}\nQuestion : {payload.question}")
+    parts = [(bytes(image["data"]), "image/jpeg")] if image else []
+    out, run_id = await ai_service.generate(db, purpose="diagnosis_followup", schema=FollowUpAnswer, prompt=prompt, parts=parts, requested_by=user.npi)
+    entry = {"question": payload.question, **out.model_dump(), "ai_run_id": run_id, "at": utcnow()}
+    await db["phytosanitary_alerts"].update_one({"_id": doc["_id"]}, {"$push": {"qa": entry}})
+    return {**entry, **ai_service.ai_meta(run_id)}

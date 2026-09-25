@@ -38,6 +38,23 @@ class Settings(BaseSettings):
     GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
     TTS_VOICE: str = "Kore"
     TTS_MAX_CHARS: int = Field(default=1200, gt=0)
+    # Modèle plus puissant, réservé aux plans de mise en valeur des terres de l'État
+    GEMINI_PLAN_MODEL: str = "gemini-2.5-pro"
+    AI_DAILY_QUOTA_PER_USER: int = Field(default=40, ge=1, description="Appels IA non mis en cache par utilisateur et par 24 h")
+    AI_CACHE_DAYS: int = Field(default=30, ge=1)
+    # L'assistant ne répond qu'à partir des fiches validées (True uniquement pour une démonstration)
+    ASSISTANT_INCLUDE_UNVERIFIED: bool = False
+    # Filières soutenues par l'État, transmises à l'IA pour orienter les plans (à tenir à jour)
+    SUBSIDIZED_CROPS: str = "Riz,Coton,Soja,Anacarde"
+
+    # Données environnementales
+    ISDA_USERNAME: str = ""
+    ISDA_PASSWORD: str = ""
+    ISDA_BASE_URL: str = "https://api.isda-africa.com"
+    OPEN_METEO_ARCHIVE_URL: str = "https://archive-api.open-meteo.com/v1/archive"
+    OPEN_METEO_ELEVATION_URL: str = "https://api.open-meteo.com/v1/elevation"
+    OVERPASS_URL: str = "https://overpass-api.de/api/interpreter"
+    ENVIRONMENT_MAX_AGE_DAYS: int = Field(default=90, ge=1)
 
     # Météo (Open-Meteo : gratuit, sans clé)
     OPEN_METEO_FORECAST_URL: str = "https://api.open-meteo.com/v1/forecast"
@@ -79,6 +96,14 @@ class Settings(BaseSettings):
         if self.APP_ENV == "production" and self.SMS_PROVIDER == "simulation":
             raise ValueError("SMS_PROVIDER=simulation est interdit quand APP_ENV=production : branchez un vrai fournisseur SMS.")
         return self
+
+    @property
+    def subsidized_crops(self) -> list[str]:
+        return [c.strip() for c in self.SUBSIDIZED_CROPS.split(",") if c.strip()]
+
+    @property
+    def isda_enabled(self) -> bool:
+        return bool(self.ISDA_USERNAME and self.ISDA_PASSWORD)
 
     @property
     def gemini_enabled(self) -> bool:

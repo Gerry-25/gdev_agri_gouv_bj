@@ -1,0 +1,31 @@
+@import "tailwindcss";
+@import "@fontsource/atkinson-hyperlegible/400.css";
+@import "@fontsource/atkinson-hyperlegible/700.css";
+
+/*
+ * Style du template AgriSmart (neutres, accent émeraude) avec deux ajustements :
+ * - police Atkinson Hyperlegible, embarquée, lisible au soleil et hors ligne ;
+ * - taille minimale de 12 px (aucun texte en 10-11 px).
+ */
+@theme {
+  --font-sans: "Atkinson Hyperlegible", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  @apply bg-neutral-50 text-neutral-900 antialiased;
+}
+:focus-visible {
+  outline: 2px solid var(--color-emerald-700);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

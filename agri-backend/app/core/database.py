@@ -81,6 +81,19 @@ async def create_indexes(database: AsyncIOMotorDatabase) -> None:
     await database["concession_reports"].create_index([("concession_id", 1), ("season", 1), ("crop_type", 1)], unique=True)
     await database["concession_inspections"].create_index("concession_id")
 
+    # Assistance IA
+    await database["ai_runs"].create_index([("requested_by", 1), ("created_at", -1)])
+    await database["ai_runs"].create_index("purpose")
+    await database["ai_cache"].create_index("created_at", expireAfterSeconds=60 * 24 * 3600)
+    await database["domain_plans"].create_index([("domain_id", 1), ("version", -1)])
+    await database["domain_photos"].create_index("domain_id")
+    await database["fertilization_plans"].create_index([("land_id", 1), ("created_at", -1)])
+    await database["assistant_logs"].create_index([("npi", 1), ("created_at", -1)])
+    await database["reports"].create_index("created_at")
+    await database["stock_lots"].create_index([("npi", 1), ("status", 1)])
+    await database["stock_lots"].create_index(
+        [("npi", 1), ("client_ref", 1)], unique=True, partialFilterExpression={"client_ref": {"$type": "string"}})
+
     await database["guides"].create_index("slug", unique=True)
     await database["guides"].create_index("category")
     # Les fichiers audio en cache expirent après 30 jours

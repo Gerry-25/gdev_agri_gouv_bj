@@ -40,7 +40,18 @@ def call_out(call: dict) -> dict:
     return out
 
 
-def public_call_out(call: dict, domain: dict) -> dict:
+def public_plan_summary(plan_doc: dict | None) -> dict | None:
+    """Seuls les plans validés par un expert sont montrés aux candidats."""
+    if not plan_doc or plan_doc.get("status") != "valide":
+        return None
+    plan = plan_doc["plan"]
+    sc = plan["scenarios"][plan["recommended_scenario_index"]]
+    return {"summary": plan["summary"], "recommended_scenario": sc["name"], "crops": sc["crops"], "rotation": sc["rotation"],
+            "calendar": sc["calendar"], "indicators": plan["valorization_indicators"], "risks": plan["risks"],
+            "reviewed_by": (plan_doc.get("review") or {}).get("organization")}
+
+
+def public_call_out(call: dict, domain: dict, plan_doc: dict | None = None) -> dict:
     award = call.get("award") or {}
     shown = call["status"] in ("attribue", "concede") and award.get("approved_at")
     return {
@@ -53,6 +64,7 @@ def public_call_out(call: dict, domain: dict) -> dict:
         "boundary": domain["boundary"],
         "awarded_to_name": award.get("farmer_name") if shown else None,
         "contest_until": award.get("contest_until") if shown else None,
+        "plan_summary": public_plan_summary(plan_doc),
     }
 
 
