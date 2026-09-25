@@ -34,12 +34,12 @@ class Settings(BaseSettings):
 
     # IA
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.5-flash"
-    GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
+    GEMINI_MODEL: str = "gemini-3.1-flash-lite"
+    GEMINI_TTS_MODEL: str = "gemini-3.8-flash-tts"
     TTS_VOICE: str = "Kore"
     TTS_MAX_CHARS: int = Field(default=1200, gt=0)
-    # Modèle plus puissant, réservé aux plans de mise en valeur des terres de l'État
-    GEMINI_PLAN_MODEL: str = "gemini-2.5-pro"
+    # Modèle pour les plans de mise en valeur des terres de l'État
+    GEMINI_PLAN_MODEL: str = "gemini-3.1-flash-lite"
     AI_DAILY_QUOTA_PER_USER: int = Field(default=40, ge=1, description="Appels IA non mis en cache par utilisateur et par 24 h")
     AI_CACHE_DAYS: int = Field(default=30, ge=1)
     # L'assistant ne répond qu'à partir des fiches validées (True uniquement pour une démonstration)
