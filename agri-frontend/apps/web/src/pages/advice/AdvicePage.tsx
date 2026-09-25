@@ -193,16 +193,6 @@ function GuideItem({ g, agent }: { g: Guide; agent: boolean }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const toggleVerify = async () => {
-    setVerifying(true);
-    try {
-      await api.PATCH("/api/v1/knowledge/guides/{slug}/verify" as any, { params: { path: { slug: g.slug } } });
-      qc.invalidateQueries({ queryKey: ["knowledge"] });
-    } finally {
-      setVerifying(false);
-    }
-  };
   const remove = async () => {
     if (!window.confirm("Supprimer cette fiche ?")) return;
     await api.DELETE("/api/v1/knowledge/guides/{slug}", { params: { path: { slug: g.slug } } });
@@ -214,28 +204,7 @@ function GuideItem({ g, agent }: { g: Guide; agent: boolean }) {
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="w-full p-4 text-left cursor-pointer space-y-1">
         <span className="flex flex-wrap items-start justify-between gap-2">
           <span className="font-bold">{g.title}</span>
-          <span className="flex items-center gap-2">
-            {g.verified ? <Badge tone="green"><BadgeCheck className="w-3.5 h-3.5" aria-hidden /> Validée</Badge> : <Badge tone="amber">Exemple à valider</Badge>}
-            {agent && (
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleVerify();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.stopPropagation();
-                    toggleVerify();
-                  }
-                }}
-                className="text-xs px-2 py-0.5 rounded border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 cursor-pointer"
-              >
-                {verifying ? "…" : g.verified ? "Annuler validation" : "Faire valider"}
-              </span>
-            )}
-          </span>
+          {g.verified ? <Badge tone="green"><BadgeCheck className="w-3.5 h-3.5" aria-hidden /> Validée</Badge> : <Badge tone="amber">Exemple à valider</Badge>}
         </span>
         <span className="block text-sm text-neutral-700">{g.summary}</span>
       </button>
@@ -249,20 +218,7 @@ function GuideItem({ g, agent }: { g: Guide; agent: boolean }) {
           {!!g.steps?.length && <ol className="space-y-1.5">{g.steps.map((s, i) => <li key={i} className="flex gap-3"><span className="w-6 h-6 rounded-full bg-emerald-800 text-white text-xs font-bold grid place-items-center shrink-0 tabular-nums">{i + 1}</span><span className="pt-0.5">{s}</span></li>)}</ol>}
           {g.content && <RichText text={g.content} />}
           <p className="text-xs text-neutral-500">Source : {g.source}{g.source_url ? <> · <a href={g.source_url} target="_blank" rel="noopener noreferrer" className="underline">voir le texte</a></> : null} · mise à jour le {formatDate(g.updated_at)}</p>
-          {agent && (
-            <div className="flex flex-wrap gap-2 pt-1">
-              <Button
-                variant={g.verified ? "outline" : "primary"}
-                onClick={toggleVerify}
-                loading={verifying}
-              >
-                <BadgeCheck className="w-4 h-4" aria-hidden />
-                {g.verified ? "Annuler la validation" : "Valider la fiche"}
-              </Button>
-              <Button variant="outline" onClick={() => setEditing(true)}><Pencil className="w-4 h-4" aria-hidden /> Modifier</Button>
-              <Button variant="danger" onClick={remove}><Trash2 className="w-4 h-4" aria-hidden /> Supprimer</Button>
-            </div>
-          )}
+          {agent && <div className="flex gap-2"><Button variant="outline" onClick={() => setEditing(true)}><Pencil className="w-4 h-4" aria-hidden /> Modifier</Button><Button variant="danger" onClick={remove}><Trash2 className="w-4 h-4" aria-hidden /> Supprimer</Button></div>}
         </div>
       )}
     </li>
